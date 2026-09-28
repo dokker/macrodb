@@ -177,8 +177,11 @@ function addToCart(food, grams, sourceText, inputMethod) {
         per_100g: food.per_100g,
         source_text: sourceText || food.name,
         input_method: inputMethod,
+        alternatives: [],
     });
     changed();
+
+    return cart.items[cart.items.length - 1];
 }
 
 function newFood(prefill = {}) {
@@ -308,7 +311,7 @@ function applyDraft(items) {
 
     items.forEach((item) => {
         if (item.match) {
-            addToCart(item.match, item.grams, item.source_text, 'fotó');
+            addToCart(item.match, item.grams, item.source_text, 'fotó').alternatives = item.alternatives;
         } else {
             missing.push(item.detected.name_hu);
         }
@@ -347,7 +350,7 @@ export function openCart() {
             <ul class="divide-y divide-line">
                 ${cart.items.map((item, index) => `
                     <li class="flex items-center gap-3 py-3">
-                        <div class="min-w-0 flex-1"><p class="truncate font-medium">${esc(item.name)}</p><p class="text-sm tabular-nums text-muted" data-line="${index}"></p></div>
+                        <div class="min-w-0 flex-1"><p class="truncate font-medium">${esc(item.name)}</p><p class="text-sm tabular-nums text-muted" data-line="${index}"></p>${swapSelect(item, index)}</div>
                         <label class="sr-only" for="g-${index}">${esc(item.name)} grammja</label>
                         <input id="g-${index}" data-grams="${index}" class="field !w-24 !px-3 !py-2 text-right" type="number" inputmode="decimal" min="1" step="any" value="${item.grams}">
                         <button class="btn-quiet !min-h-10 !px-3" data-remove="${index}" aria-label="${esc(item.name)} eltávolítása">✕</button>
@@ -382,6 +385,11 @@ export function openCart() {
             refreshTotals();
             onCartChange();
         }));
+        $$('[data-swap]', body).forEach((select) => select.addEventListener('change', () => {
+            swapMatch(cart.items[Number(select.dataset.swap)], Number(select.value));
+            changed();
+            draw();
+        }));
         $$('[data-remove]', body).forEach((button) => button.addEventListener('click', () => {
             cart.items.splice(Number(button.dataset.remove), 1);
             changed();
@@ -400,6 +408,31 @@ export function openCart() {
     };
 
     draw();
+}
+
+function swapSelect(item, index) {
+    if (!item.alternatives?.length) return '';
+
+    return `<label class="sr-only" for="swap-${index}">${esc(item.name)} cseréje</label>
+        <select id="swap-${index}" data-swap="${index}" class="mt-1 max-w-full rounded-lg border border-line bg-bg px-2 py-1 text-sm">
+            <option value="-1">Nem ez? Csere…</option>
+            ${item.alternatives.map((alternative, i) => `<option value="${i}">${esc(alternative.name)} (${num(alternative.per_100g.kcal)} kcal/100 g)</option>`).join('')}
+        </select>`;
+}
+
+/** Swaps a photo match for one of its alternatives, keeping the estimated grams; the old match becomes an alternative. */
+function swapMatch(item, index) {
+    if (index < 0) return;
+
+    const [chosen] = item.alternatives.splice(index, 1);
+
+    item.alternatives.push({
+        type: item.recipe_id ? 'recipe' : 'food', id: item.recipe_id ?? item.food_id, name: item.name, per_100g: item.per_100g,
+    });
+    item.food_id = chosen.type === 'recipe' ? null : chosen.id;
+    item.recipe_id = chosen.type === 'recipe' ? chosen.id : null;
+    item.name = chosen.name;
+    item.per_100g = chosen.per_100g;
 }
 
 async function save(sheet, body) {
