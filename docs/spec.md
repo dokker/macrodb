@@ -17,7 +17,7 @@ Az első verzióban benne van:
 
 A második körben: fotó alapú felvitel a backenden keresztül, és egy multiplatform frontend mobilra.
 
-Nincs benne az első verzióban: saját frontend, edzéskövetés, többfelhasználós működés (egyetlen felhasználó, nincs `users` tábla).
+Nincs benne az első verzióban: saját frontend, edzéskövetés, többfelhasználós működés (egyetlen felhasználó; a `users` tábla csak a bejelentkezéshez kell, egyetlen fiókkal, az adatok nincsenek felhasználóhoz kötve).
 
 ## Architektúra
 
