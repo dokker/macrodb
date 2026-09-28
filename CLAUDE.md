@@ -29,7 +29,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Micronutrients (`Nutrients::MICROS`: saturated fat, sodium, potassium, calcium, iron, magnesium, vitamin C, vitamin D) are nullable per-100 g columns on `foods`, filled only when the source has them, and exposed under `micros` in every nutrient array. Like fiber, a total is null as soon as one contributing item lacks the value. OFF gives grams, so the client converts to the units in the key names.
 - Importers are manual artisan commands (no scheduler entry, since the filtered dumps are uploaded by hand): `usda:import {dir}` reads the FDC CSVs (`food.csv`, `food_nutrient.csv`; foods without energy are skipped, missing macros default to 0) and `off:import {file}` reads a JSON Lines dump (optionally .gz) filtered by `--countries` (default `en:hungary`). Both upsert on `(source, external_id)` via `FoodImporter`, so re-runs are safe. `OpenFoodFactsProduct` is the single OFF-to-food mapping, shared with the live client.
 - `add_food_alias` (MCP) / `POST /api/foods/{id}/aliases` lets the LLM attach Hungarian names to imported English foods.
-- Not built yet: photo flow (`POST /meals/photo`, `VisionProvider`), the frontend PWA.
+- Photo flow: `POST /api/meals/photo` (multipart `image`, optional `note`) -> `PhotoDraftBuilder` asks the `VisionProvider` (bound to `GeminiVisionProvider`, config `services.gemini`, env `GEMINI_API_KEY`/`GEMINI_MODEL`) for `{name_hu, name_en, grams, confidence}`, matches each through `FoodSearch` (Hungarian name first, then English) and returns an unsaved draft whose items are shaped for `POST /api/meals`. Vision failures answer 502. The default model id is unverified against the live API; check it when first using a real key.
+- Not built yet: the frontend PWA.
 
 ## Decisions already made (see the spec's "Nyitott kérdések" section)
 

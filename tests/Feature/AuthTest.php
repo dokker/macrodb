@@ -7,6 +7,7 @@ it('rejects unauthenticated REST and MCP requests', function (string $method, st
 })->with([
     ['GET', '/api/foods?q=zab'],
     ['POST', '/api/meals'],
+    ['POST', '/api/meals/photo'],
     ['GET', '/api/summary/daily?date=2026-09-28'],
     ['POST', '/mcp'],
 ]);

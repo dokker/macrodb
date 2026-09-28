@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Contracts\VisionProvider;
+use App\Services\Vision\GeminiVisionProvider;
 use Illuminate\Support\ServiceProvider;
 use Laravel\Passport\Passport;
 
@@ -12,7 +14,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->bind(VisionProvider::class, GeminiVisionProvider::class);
     }
 
     /**

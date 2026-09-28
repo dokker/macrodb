@@ -22,6 +22,12 @@ return [
         'key' => env('RESEND_API_KEY'),
     ],
 
+    'gemini' => [
+        'key' => env('GEMINI_API_KEY'),
+        'model' => env('GEMINI_MODEL', 'gemini-2.5-flash'),
+        'base_url' => env('GEMINI_URL', 'https://generativelanguage.googleapis.com'),
+    ],
+
     'open_food_facts' => [
         'base_url' => env('OPEN_FOOD_FACTS_URL', 'https://world.openfoodfacts.org'),
         'user_agent' => env('OPEN_FOOD_FACTS_USER_AGENT', 'MacroDB/1.0'),

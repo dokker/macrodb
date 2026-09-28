@@ -4,6 +4,7 @@ use App\Http\Controllers\FoodAliasController;
 use App\Http\Controllers\FoodController;
 use App\Http\Controllers\MealController;
 use App\Http\Controllers\MealItemController;
+use App\Http\Controllers\MealPhotoController;
 use App\Http\Controllers\RecipeController;
 use App\Http\Controllers\SummaryController;
 use Illuminate\Support\Facades\Route;
@@ -15,6 +16,7 @@ Route::middleware('auth:api')->group(function () {
     Route::post('/foods/{food}/aliases', [FoodAliasController::class, 'store']);
     Route::post('/recipes', [RecipeController::class, 'store']);
     Route::post('/meals', [MealController::class, 'store']);
+    Route::post('/meals/photo', [MealPhotoController::class, 'store']);
     Route::patch('/meal-items/{mealItem}', [MealItemController::class, 'update']);
     Route::delete('/meal-items/{mealItem}', [MealItemController::class, 'destroy']);
     Route::get('/summary/daily', [SummaryController::class, 'daily']);
