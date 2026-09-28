@@ -44,6 +44,23 @@ class FoodCatalog
     }
 
     /**
+     * Creates a recipe from validated request data (REST body or MCP tool arguments).
+     *
+     * @param  array{name: string, total_weight_g: float|int, ingredients: list<array{food_id: int, grams: float|int}>, default_portion_g?: float|int|null, is_dish?: bool, portions?: list<array{label: string, grams: float|int}>}  $data
+     */
+    public function createRecipeFromInput(array $data): Recipe
+    {
+        return $this->createRecipe(
+            $data['name'],
+            (float) $data['total_weight_g'],
+            $data['ingredients'],
+            isset($data['default_portion_g']) ? (float) $data['default_portion_g'] : null,
+            $data['is_dish'] ?? true,
+            $data['portions'] ?? [],
+        );
+    }
+
+    /**
      * @param  list<array{food_id: int, grams: float|int}>  $ingredients
      * @param  list<array{label: string, grams: float|int}>  $portions
      */

@@ -23,7 +23,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `App\Services\MealLogger` is the only write path for meals (`log`, `updateItemGrams`, `deleteItem`; deleting the last item removes the meal). `App\Services\DailySummary` (`forDate`, `forRange`) computes totals per meal, the applicable `daily_targets` row and the deviation, cutting days in Europe/Budapest.
 - `App\Services\FoodCatalog` backs `create_food`, `create_recipe` and `get_food_by_barcode` (local DB first, then `OpenFoodFactsClient`, whose hit is persisted). OFF products without a name or the four core macros are treated as not found.
 - REST routes live in `routes/api.php` (prefix `/api`, unversioned) with Form Requests, thin controllers and resources. **They are not authenticated yet**; auth must land before any deployment.
-- Not built yet: MCP server/tools (`laravel/mcp` is installed), auth (needs a dependency decision: Sanctum for the API token, Passport or similar for the MCP OAuth), bulk importers (OFF/USDA), photo flow.
+- The MCP server is `App\Mcp\Servers\MacroDbServer` at `/mcp` (`routes/ai.php`) with nine tools in `app/Mcp/Tools`, one per spec tool. Tools reuse the Form Request `rules()` for validation and the same services and resources as REST. **Also unauthenticated for now.**
+- Not built yet: auth (needs a dependency decision: Sanctum for the API token, Passport or similar for the MCP OAuth), bulk importers (OFF/USDA), photo flow.
 
 ## Decisions already made (see the spec's "Nyitott kérdések" section)
 

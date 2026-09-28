@@ -7,6 +7,7 @@ use App\Enums\MealType;
 use App\Models\Meal;
 use App\Models\MealItem;
 use Carbon\CarbonInterface;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 
@@ -47,6 +48,24 @@ class MealLogger
 
             return $meal->load('items.food', 'items.recipe.items.food');
         });
+    }
+
+    /**
+     * Logs a meal from validated request data (REST body or MCP tool arguments).
+     *
+     * @param  array{eaten_at: string, meal_type: string, note?: ?string, items: list<array<string, mixed>>}  $data
+     */
+    public function logFromInput(array $data): Meal
+    {
+        return $this->log(
+            Carbon::parse($data['eaten_at']),
+            MealType::from($data['meal_type']),
+            array_map(fn (array $item): array => [
+                ...$item,
+                'input_method' => isset($item['input_method']) ? InputMethod::from($item['input_method']) : InputMethod::Text,
+            ], $data['items']),
+            $data['note'] ?? null,
+        );
     }
 
     public function updateItemGrams(MealItem $item, float $grams): Meal
