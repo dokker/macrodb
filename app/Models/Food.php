@@ -11,7 +11,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 // "food" is uncountable for the pluralizer, so the table name must be explicit.
 #[Table('foods')]
-#[Fillable(['source', 'external_id', 'barcode', 'name', 'brand', 'kcal', 'protein', 'carbs', 'fat', 'fiber', 'sugar', 'serving_size_g'])]
+#[Fillable(['source', 'external_id', 'barcode', 'name', 'brand', 'kcal', 'protein', 'carbs', 'fat', 'fiber', 'sugar', 'serving_size_g', 'saturated_fat_g', 'sodium_mg', 'potassium_mg', 'calcium_mg', 'iron_mg', 'magnesium_mg', 'vitamin_c_mg', 'vitamin_d_ug'])]
 class Food extends Model
 {
     /**
@@ -32,7 +32,15 @@ class Food extends Model
 
     public function nutrientsPer100g(): Nutrients
     {
-        return new Nutrients($this->kcal, $this->protein, $this->carbs, $this->fat, $this->fiber, $this->sugar);
+        return new Nutrients(
+            $this->kcal,
+            $this->protein,
+            $this->carbs,
+            $this->fat,
+            $this->fiber,
+            $this->sugar,
+            collect(Nutrients::MICROS)->mapWithKeys(fn (string $key): array => [$key => $this->{$key}])->all(),
+        );
     }
 
     protected function casts(): array
@@ -46,6 +54,7 @@ class Food extends Model
             'fiber' => 'float',
             'sugar' => 'float',
             'serving_size_g' => 'float',
+            ...array_fill_keys(Nutrients::MICROS, 'float'),
         ];
     }
 }

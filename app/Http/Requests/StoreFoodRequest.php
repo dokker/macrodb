@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Support\Nutrients;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreFoodRequest extends FormRequest
@@ -12,6 +13,7 @@ class StoreFoodRequest extends FormRequest
     public function rules(): array
     {
         return [
+            ...array_fill_keys(Nutrients::MICROS, ['nullable', 'numeric', 'min:0']),
             'name' => ['required', 'string', 'max:255'],
             'brand' => ['nullable', 'string', 'max:255'],
             'barcode' => ['nullable', 'string', 'max:32', 'unique:foods,barcode'],

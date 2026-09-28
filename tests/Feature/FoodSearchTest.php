@@ -4,6 +4,7 @@ use App\Enums\FoodSource;
 use App\Models\Food;
 use App\Models\Recipe;
 use App\Services\FoodSearch;
+use App\Support\Nutrients;
 
 /**
  * @param  list<string>  $aliases
@@ -81,7 +82,7 @@ it('returns recipes alongside foods with macros from the cooked weight', functio
     expect($result->toArray())->toMatchArray([
         'type' => 'recipe',
         'name' => 'Zabkása mogyoróvajjal',
-        'per_100g' => ['kcal' => 95.0, 'protein' => 3.3, 'carbs' => 15.0, 'fat' => 1.8, 'fiber' => null, 'sugar' => null],
+        'per_100g' => ['kcal' => 95.0, 'protein' => 3.3, 'carbs' => 15.0, 'fat' => 1.8, 'fiber' => null, 'sugar' => null, 'micros' => array_fill_keys(Nutrients::MICROS, null)],
         'default_portion_g' => 200.0,
         'portions' => [['label' => '1 tál', 'grams' => 200.0]],
     ]);

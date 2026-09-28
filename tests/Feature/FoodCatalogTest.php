@@ -13,7 +13,7 @@ function offProduct(array $overrides = []): array
         'product_name_hu' => 'Zabital',
         'brands' => 'Oatly, Other',
         'serving_quantity' => 250,
-        'nutriments' => ['energy-kcal_100g' => 46, 'proteins_100g' => 1, 'carbohydrates_100g' => 6.6, 'fat_100g' => 1.5, 'sugars_100g' => 4],
+        'nutriments' => ['energy-kcal_100g' => 46, 'proteins_100g' => 1, 'carbohydrates_100g' => 6.6, 'fat_100g' => 1.5, 'sugars_100g' => 4, 'sodium_100g' => 0.1, 'calcium_100g' => 0.12, 'vitamin-d_100g' => 0.0000015, 'saturated-fat_100g' => 0.2],
         ...$overrides,
     ]];
 }
@@ -43,10 +43,21 @@ it('persists a product fetched from Open Food Facts on a local miss', function (
         ->and($food->brand)->toBe('Oatly')
         ->and($food->kcal)->toBe(46.0)
         ->and($food->fiber)->toBeNull()
-        ->and($food->serving_size_g)->toBe(250.0);
+        ->and($food->serving_size_g)->toBe(250.0)
+        ->and($food->sodium_mg)->toBe(100.0)
+        ->and($food->calcium_mg)->toBe(120.0)
+        ->and($food->vitamin_d_ug)->toBe(1.5)
+        ->and($food->saturated_fat_g)->toBe(0.2)
+        ->and($food->iron_mg)->toBeNull();
 
     app(FoodCatalog::class)->findByBarcode('5990000000001');
     Http::assertSentCount(1);
+});
+
+it('derives sodium from salt when OFF gives no sodium value', function () {
+    Http::fake(['*' => Http::response(offProduct(['nutriments' => ['energy-kcal_100g' => 1, 'proteins_100g' => 1, 'carbohydrates_100g' => 1, 'fat_100g' => 1, 'salt_100g' => 2.5]]))]);
+
+    expect(app(FoodCatalog::class)->findByBarcode('5990000000001')->sodium_mg)->toBe(1000.0);
 });
 
 it('returns null for unknown or unusable Open Food Facts products', function (mixed $response) {

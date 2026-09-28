@@ -26,7 +26,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - The MCP server is `App\Mcp\Servers\MacroDbServer` at `/mcp` (`routes/ai.php`) with nine tools in `app/Mcp/Tools`, one per spec tool. Tools reuse the Form Request `rules()` for validation and the same services and resources as REST. `/mcp` sits behind `auth:api` with `Mcp::oauthRoutes()`; the OAuth consent screen is `resources/views/mcp/authorize.blade.php` and needs the session login at `/login`.
 - Daily targets are set with `artisan targets:set {kcal} {protein} {carbs} {fat} --from=` (no tool or route for it).
 - Auth is Passport alone (no Sanctum): OAuth for the MCP connector, a personal access token for REST (`artisan api:token`, needs a personal client: `artisan passport:client --personal`). The single account is seeded from `MACRODB_USER_EMAIL`/`MACRODB_USER_PASSWORD`; run `passport:keys` on deploy. REST tests use `Passport::actingAs`.
-- Not built yet: bulk importers (OFF/USDA), micronutrients, photo flow.
+- Micronutrients (`Nutrients::MICROS`: saturated fat, sodium, potassium, calcium, iron, magnesium, vitamin C, vitamin D) are nullable per-100 g columns on `foods`, filled only when the source has them, and exposed under `micros` in every nutrient array. Like fiber, a total is null as soon as one contributing item lacks the value. OFF gives grams, so the client converts to the units in the key names.
+- Not built yet: bulk importers (OFF/USDA), photo flow.
 
 ## Decisions already made (see the spec's "Nyitott kérdések" section)
 

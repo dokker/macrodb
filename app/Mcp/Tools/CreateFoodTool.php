@@ -5,7 +5,9 @@ namespace App\Mcp\Tools;
 use App\Http\Requests\StoreFoodRequest;
 use App\Http\Resources\FoodResource;
 use App\Services\FoodCatalog;
+use App\Support\Nutrients;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
+use Illuminate\JsonSchema\Types\Type;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
 use Laravel\Mcp\Server\Attributes\Description;
@@ -37,6 +39,10 @@ class CreateFoodTool extends Tool
             'fiber' => $schema->number(),
             'sugar' => $schema->number(),
             'serving_size_g' => $schema->number()->description('Typical serving in grams'),
+            ...array_map(
+                fn (): Type => $schema->number()->description('Optional micronutrient per 100 g; omit when unknown'),
+                array_flip(Nutrients::MICROS),
+            ),
         ];
     }
 }
