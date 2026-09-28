@@ -1,5 +1,6 @@
 import { renderAdd, cartCount, openCart, subscribeCart } from './views/add.js';
 import { renderHistory } from './views/history.js';
+import { renderTargets } from './views/targets.js';
 import { renderToday } from './views/today.js';
 import { $ } from './util.js';
 
@@ -11,7 +12,9 @@ const TABS = [
     { route: 'history', label: 'Napló', icon: '<path d="M5 19V9M12 19V5M19 19v-7" stroke-linecap="round"/>' },
 ];
 
-const VIEWS = { today: renderToday, add: renderAdd, history: renderHistory };
+const VIEWS = {
+    today: renderToday, add: renderAdd, history: renderHistory, targets: renderTargets,
+};
 
 function parseHash() {
     const [path, query = ''] = location.hash.replace(/^#\//, '').split('?');
@@ -44,7 +47,7 @@ function drawCartBar() {
 
 function route() {
     const { route: name, params } = parseHash();
-    drawTabs(name);
+    drawTabs(name === 'targets' ? 'history' : name);
     VIEWS[name](view, params);
     window.scrollTo(0, 0);
 }

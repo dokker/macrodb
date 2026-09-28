@@ -2,7 +2,6 @@
 
 namespace App\Services;
 
-use App\Models\DailyTarget;
 use App\Models\Meal;
 use App\Models\MealItem;
 use App\Support\Nutrients;
@@ -16,6 +15,8 @@ use Illuminate\Support\Collection;
 class DailySummary
 {
     public const string TIMEZONE = 'Europe/Budapest';
+
+    public function __construct(private DailyTargets $targets) {}
 
     /**
      * @return array{date: string, total: array<string, float|null>, meals: list<array<string, mixed>>, target: array<string, int|float>|null, deviation: array<string, float>|null}
@@ -91,10 +92,7 @@ class DailySummary
             Nutrients::zero(),
         );
 
-        $target = DailyTarget::query()
-            ->whereDate('valid_from', '<=', $day->toDateString())
-            ->orderByDesc('valid_from')
-            ->first();
+        $target = $this->targets->forDate($day->toDateString());
 
         return [
             'date' => $day->toDateString(),

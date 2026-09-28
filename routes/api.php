@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\DailyTargetController;
 use App\Http\Controllers\FoodAliasController;
 use App\Http\Controllers\FoodController;
 use App\Http\Controllers\MealController;
@@ -19,6 +20,9 @@ Route::middleware('auth:api')->group(function () {
     Route::post('/meals/photo', [MealPhotoController::class, 'store']);
     Route::patch('/meal-items/{mealItem}', [MealItemController::class, 'update']);
     Route::delete('/meal-items/{mealItem}', [MealItemController::class, 'destroy']);
+    Route::get('/targets', [DailyTargetController::class, 'index']);
+    Route::post('/targets', [DailyTargetController::class, 'store']);
+    Route::delete('/targets/{dailyTarget}', [DailyTargetController::class, 'destroy']);
     Route::get('/summary/daily', [SummaryController::class, 'daily']);
     Route::get('/summary/range', [SummaryController::class, 'range']);
 });

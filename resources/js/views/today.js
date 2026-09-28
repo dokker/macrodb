@@ -49,10 +49,10 @@ function totalsCard(summary) {
     const over = target && eaten > target.kcal;
 
     const status = !target
-        ? '<p class="text-sm text-muted">Nincs napi célérték beállítva.</p>'
+        ? '<p class="text-sm text-muted">Nincs napi célérték beállítva.</p><a href="#/targets" class="mt-2 inline-block text-sm font-semibold text-brand">Célok beállítása ›</a>'
         : over
             ? `<p class="font-semibold text-protein">${num(deviation.kcal)} kcal a cél fölött</p>`
-            : `<p class="font-semibold">Még ${num(-deviation.kcal)} kcal</p><p class="text-sm text-muted">a ${num(target.kcal)} kcal célból</p>`;
+            : `<p class="font-semibold">Még ${num(-deviation.kcal)} kcal</p><p class="text-sm text-muted">a ${num(target.kcal)} kcal célból · <a href="#/targets" class="font-semibold text-brand">módosítás</a></p>`;
 
     return `
         <section class="card p-5" aria-label="Napi összesítő">

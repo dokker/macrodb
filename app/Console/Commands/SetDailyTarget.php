@@ -2,7 +2,7 @@
 
 namespace App\Console\Commands;
 
-use App\Models\DailyTarget;
+use App\Services\DailyTargets;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
@@ -11,7 +11,7 @@ use Illuminate\Console\Command;
 #[Description('Set the daily targets valid from a date; an existing row for that date is replaced')]
 class SetDailyTarget extends Command
 {
-    public function handle(): int
+    public function handle(DailyTargets $targets): int
     {
         $validFrom = $this->option('from') ?: now('Europe/Budapest')->toDateString();
 
@@ -21,12 +21,13 @@ class SetDailyTarget extends Command
             return self::FAILURE;
         }
 
-        DailyTarget::updateOrCreate(['valid_from' => $validFrom], [
-            'kcal' => (int) $this->argument('kcal'),
-            'protein' => (float) $this->argument('protein'),
-            'carbs' => (float) $this->argument('carbs'),
-            'fat' => (float) $this->argument('fat'),
-        ]);
+        $targets->set(
+            $validFrom,
+            (int) $this->argument('kcal'),
+            (float) $this->argument('protein'),
+            (float) $this->argument('carbs'),
+            (float) $this->argument('fat'),
+        );
 
         $this->components->info("Daily target valid from {$validFrom} saved.");
 

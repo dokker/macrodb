@@ -27,7 +27,10 @@ export async function renderHistory(view) {
 
     view.innerHTML = `
         <header class="mb-4">
-            <h1 class="text-xl font-bold">Napló</h1>
+            <div class="flex items-center justify-between">
+                <h1 class="text-xl font-bold">Napló</h1>
+                <a href="#/targets" class="btn-quiet !min-h-10 !px-4 text-sm">Napi célok</a>
+            </div>
             <div class="mt-3 flex gap-2" role="group" aria-label="Időszak">
                 ${[7, 14, 30].map((n) => `<button class="chip" data-days="${n}" aria-pressed="${n === days}">${n} nap</button>`).join('')}
             </div>
