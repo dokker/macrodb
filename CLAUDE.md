@@ -21,7 +21,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - The enums in `App\Enums` hold the stored values: `FoodSource` (off/usda/custom), `MealType` and `InputMethod` (Hungarian values from the spec).
 - The Laravel pluralizer treats "food" as uncountable, so `Food` sets `#[Table('foods')]` and migrations must use `constrained('foods')`.
 - `App\Services\MealLogger` is the only write path for meals (`log`, `updateItemGrams`, `deleteItem`; deleting the last item removes the meal). `App\Services\DailySummary` (`forDate`, `forRange`) computes totals per meal, the applicable `daily_targets` row and the deviation, cutting days in Europe/Budapest.
-- Not built yet: MCP server/tools (`laravel/mcp` is installed), REST routes and request validation, auth, importers (OFF/USDA), `create_food`/`create_recipe` services, barcode lookup, photo flow.
+- `App\Services\FoodCatalog` backs `create_food`, `create_recipe` and `get_food_by_barcode` (local DB first, then `OpenFoodFactsClient`, whose hit is persisted). OFF products without a name or the four core macros are treated as not found.
+- Not built yet: MCP server/tools (`laravel/mcp` is installed), REST routes and request validation, auth, bulk importers (OFF/USDA), photo flow.
 
 ## Decisions already made (see the spec's "Nyitott kérdések" section)
 
