@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\InputMethod;
+use App\Support\Nutrients;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -35,6 +36,18 @@ class MealItem extends Model
     public function recipe(): BelongsTo
     {
         return $this->belongsTo(Recipe::class);
+    }
+
+    /**
+     * Nutrients of the logged grams, derived from the food's or recipe's per-100 g values.
+     */
+    public function nutrients(): Nutrients
+    {
+        $per100g = $this->food_id !== null
+            ? $this->food->nutrientsPer100g()
+            : $this->recipe->nutrientsPer100g();
+
+        return $per100g->scale($this->grams / 100);
     }
 
     protected function casts(): array

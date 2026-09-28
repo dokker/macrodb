@@ -20,7 +20,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `App\Support\Nutrients` is an immutable nutrient amount (`scale`, `plus`). Fiber/sugar become null as soon as any contributing source lacks them. Use it for every macro calculation (recipes, meals, summaries).
 - The enums in `App\Enums` hold the stored values: `FoodSource` (off/usda/custom), `MealType` and `InputMethod` (Hungarian values from the spec).
 - The Laravel pluralizer treats "food" as uncountable, so `Food` sets `#[Table('foods')]` and migrations must use `constrained('foods')`.
-- Not built yet: MCP server/tools (`laravel/mcp` is installed), REST routes, auth, importers (OFF/USDA), summaries, daily-target logic.
+- `App\Services\MealLogger` is the only write path for meals (`log`, `updateItemGrams`, `deleteItem`; deleting the last item removes the meal). `App\Services\DailySummary` (`forDate`, `forRange`) computes totals per meal, the applicable `daily_targets` row and the deviation, cutting days in Europe/Budapest.
+- Not built yet: MCP server/tools (`laravel/mcp` is installed), REST routes and request validation, auth, importers (OFF/USDA), `create_food`/`create_recipe` services, barcode lookup, photo flow.
 
 ## Decisions already made (see the spec's "Nyitott kérdések" section)
 
