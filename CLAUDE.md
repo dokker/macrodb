@@ -22,7 +22,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - The Laravel pluralizer treats "food" as uncountable, so `Food` sets `#[Table('foods')]` and migrations must use `constrained('foods')`.
 - `App\Services\MealLogger` is the only write path for meals (`log`, `updateItemGrams`, `deleteItem`; deleting the last item removes the meal). `App\Services\DailySummary` (`forDate`, `forRange`) computes totals per meal, the applicable `daily_targets` row and the deviation, cutting days in Europe/Budapest.
 - `App\Services\FoodCatalog` backs `create_food`, `create_recipe` and `get_food_by_barcode` (local DB first, then `OpenFoodFactsClient`, whose hit is persisted). OFF products without a name or the four core macros are treated as not found.
-- Not built yet: MCP server/tools (`laravel/mcp` is installed), REST routes and request validation, auth, bulk importers (OFF/USDA), photo flow.
+- REST routes live in `routes/api.php` (prefix `/api`, unversioned) with Form Requests, thin controllers and resources. **They are not authenticated yet**; auth must land before any deployment.
+- Not built yet: MCP server/tools (`laravel/mcp` is installed), auth (needs a dependency decision: Sanctum for the API token, Passport or similar for the MCP OAuth), bulk importers (OFF/USDA), photo flow.
 
 ## Decisions already made (see the spec's "Nyitott kérdések" section)
 
