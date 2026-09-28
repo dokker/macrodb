@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\FoodAliasController;
 use App\Http\Controllers\FoodController;
 use App\Http\Controllers\MealController;
 use App\Http\Controllers\MealItemController;
@@ -11,6 +12,7 @@ Route::middleware('auth:api')->group(function () {
     Route::get('/foods', [FoodController::class, 'index']);
     Route::get('/foods/barcode/{code}', [FoodController::class, 'barcode']);
     Route::post('/foods', [FoodController::class, 'store']);
+    Route::post('/foods/{food}/aliases', [FoodAliasController::class, 'store']);
     Route::post('/recipes', [RecipeController::class, 'store']);
     Route::post('/meals', [MealController::class, 'store']);
     Route::patch('/meal-items/{mealItem}', [MealItemController::class, 'update']);

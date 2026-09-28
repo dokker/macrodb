@@ -80,3 +80,15 @@ it('summarises a range with targets', function () {
 
     $this->getJson('/api/summary/range?from=2026-09-28&to=2026-09-27')->assertUnprocessable();
 });
+
+it('adds an alias that makes an English food searchable and ignores duplicates', function () {
+    $oats = foodPer100g('Oats', kcal: 380);
+
+    $this->getJson('/api/foods?q=zabpehely')->assertJsonCount(0, 'data');
+
+    $this->postJson("/api/foods/{$oats->id}/aliases", ['name' => 'zabpehely'])->assertCreated();
+    $this->postJson("/api/foods/{$oats->id}/aliases", ['name' => 'zabpehely'])->assertOk();
+
+    $this->getJson('/api/foods?q=zabpehely')->assertJsonPath('data.0.name', 'Oats');
+    expect($oats->aliases()->count())->toBe(1);
+});

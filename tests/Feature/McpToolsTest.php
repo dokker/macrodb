@@ -1,6 +1,7 @@
 <?php
 
 use App\Mcp\Servers\MacroDbServer;
+use App\Mcp\Tools\AddFoodAliasTool;
 use App\Mcp\Tools\CreateFoodTool;
 use App\Mcp\Tools\CreateRecipeTool;
 use App\Mcp\Tools\DeleteMealItemTool;
@@ -66,4 +67,11 @@ it('creates foods and recipes', function () {
         'total_weight_g' => 200,
         'ingredients' => [['food_id' => $flour->id, 'grams' => 100]],
     ])->assertOk()->assertSee('180');
+});
+
+it('adds an alias through the tool and reports an unknown food', function () {
+    $oats = foodPer100g('Oats', kcal: 380);
+
+    MacroDbServer::tool(AddFoodAliasTool::class, ['food_id' => $oats->id, 'name' => 'zabpehely'])->assertOk()->assertSee('zabpehely');
+    MacroDbServer::tool(AddFoodAliasTool::class, ['food_id' => 999, 'name' => 'x'])->assertHasErrors();
 });

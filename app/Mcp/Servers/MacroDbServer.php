@@ -2,6 +2,7 @@
 
 namespace App\Mcp\Servers;
 
+use App\Mcp\Tools\AddFoodAliasTool;
 use App\Mcp\Tools\CreateFoodTool;
 use App\Mcp\Tools\CreateRecipeTool;
 use App\Mcp\Tools\DeleteMealItemTool;
@@ -31,6 +32,7 @@ class MacroDbServer extends Server
         GetRangeSummaryTool::class,
         CreateFoodTool::class,
         CreateRecipeTool::class,
+        AddFoodAliasTool::class,
     ];
 
     protected array $resources = [

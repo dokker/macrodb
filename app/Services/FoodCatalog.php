@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Enums\FoodSource;
 use App\Models\Food;
+use App\Models\FoodAlias;
 use App\Models\Recipe;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
@@ -21,6 +22,14 @@ class FoodCatalog
     public function createFood(array $attributes): Food
     {
         return Food::create([...$attributes, 'source' => FoodSource::Custom]);
+    }
+
+    /**
+     * Adds a search name (typically Hungarian for an English USDA food); an alias that already exists is kept as is.
+     */
+    public function addAlias(Food $food, string $name, string $lang = 'hu'): FoodAlias
+    {
+        return $food->aliases()->firstOrCreate(['name' => $name], ['lang' => $lang]);
     }
 
     /**
