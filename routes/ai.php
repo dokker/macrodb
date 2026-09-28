@@ -3,4 +3,6 @@
 use App\Mcp\Servers\MacroDbServer;
 use Laravel\Mcp\Facades\Mcp;
 
-Mcp::web('/mcp', MacroDbServer::class);
+Mcp::oauthRoutes();
+
+Mcp::web('/mcp', MacroDbServer::class)->middleware('auth:api');

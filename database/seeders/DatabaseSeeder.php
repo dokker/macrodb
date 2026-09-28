@@ -3,23 +3,18 @@
 namespace Database\Seeders;
 
 use App\Models\User;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
 {
-    use WithoutModelEvents;
-
     /**
-     * Seed the application's database.
+     * Seeds the single account from MACRODB_USER_EMAIL / MACRODB_USER_PASSWORD.
      */
     public function run(): void
     {
-        // User::factory(10)->create();
-
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-        ]);
+        User::updateOrCreate(
+            ['email' => env('MACRODB_USER_EMAIL', 'me@example.com')],
+            ['name' => 'MacroDB', 'password' => env('MACRODB_USER_PASSWORD', 'password')],
+        );
     }
 }

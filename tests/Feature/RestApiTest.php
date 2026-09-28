@@ -3,6 +3,10 @@
 use App\Models\DailyTarget;
 use App\Models\Meal;
 use App\Models\MealItem;
+use App\Models\User;
+use Laravel\Passport\Passport;
+
+beforeEach(fn () => Passport::actingAs(User::factory()->create()));
 
 it('searches foods and recipes through GET /api/foods', function () {
     foodPer100g('Zabpehely', kcal: 370);

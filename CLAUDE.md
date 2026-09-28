@@ -22,10 +22,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - The Laravel pluralizer treats "food" as uncountable, so `Food` sets `#[Table('foods')]` and migrations must use `constrained('foods')`.
 - `App\Services\MealLogger` is the only write path for meals (`log`, `updateItemGrams`, `deleteItem`; deleting the last item removes the meal). `App\Services\DailySummary` (`forDate`, `forRange`) computes totals per meal, the applicable `daily_targets` row and the deviation, cutting days in Europe/Budapest.
 - `App\Services\FoodCatalog` backs `create_food`, `create_recipe` and `get_food_by_barcode` (local DB first, then `OpenFoodFactsClient`, whose hit is persisted). OFF products without a name or the four core macros are treated as not found.
-- REST routes live in `routes/api.php` (prefix `/api`, unversioned) with Form Requests, thin controllers and resources. **They are not authenticated yet**; auth must land before any deployment.
-- The MCP server is `App\Mcp\Servers\MacroDbServer` at `/mcp` (`routes/ai.php`) with nine tools in `app/Mcp/Tools`, one per spec tool. Tools reuse the Form Request `rules()` for validation and the same services and resources as REST. **Also unauthenticated for now.**
+- REST routes live in `routes/api.php` (prefix `/api`, unversioned) with Form Requests, thin controllers and resources. They sit behind `auth:api` (Passport).
+- The MCP server is `App\Mcp\Servers\MacroDbServer` at `/mcp` (`routes/ai.php`) with nine tools in `app/Mcp/Tools`, one per spec tool. Tools reuse the Form Request `rules()` for validation and the same services and resources as REST. `/mcp` sits behind `auth:api` with `Mcp::oauthRoutes()`; the OAuth consent screen is `resources/views/mcp/authorize.blade.php` and needs the session login at `/login`.
 - Daily targets are set with `artisan targets:set {kcal} {protein} {carbs} {fat} --from=` (no tool or route for it).
-- Not built yet: auth (needs a dependency decision: Sanctum for the API token, Passport or similar for the MCP OAuth), bulk importers (OFF/USDA), photo flow.
+- Auth is Passport alone (no Sanctum): OAuth for the MCP connector, a personal access token for REST (`artisan api:token`, needs a personal client: `artisan passport:client --personal`). The single account is seeded from `MACRODB_USER_EMAIL`/`MACRODB_USER_PASSWORD`; run `passport:keys` on deploy. REST tests use `Passport::actingAs`.
+- Not built yet: bulk importers (OFF/USDA), micronutrients, photo flow.
 
 ## Decisions already made (see the spec's "Nyitott kérdések" section)
 
