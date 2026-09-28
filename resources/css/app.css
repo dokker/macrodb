@@ -3,7 +3,104 @@
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
 
-@theme {
+/* Colours are CSS variables so dark mode is one swap; utilities like bg-surface come from @theme inline. */
+:root {
+    color-scheme: light dark;
+    --bg: #f7f5f0;
+    --surface: #ffffff;
+    --ink: #1f1d18;
+    --muted: #6f6a5f;
+    --line: #e8e4da;
+    --brand: #2f7d5b;
+    --brand-ink: #ffffff;
+    --protein: #d2553f;
+    --carbs: #c98a12;
+    --fat: #4a78c2;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --bg: #14130f;
+        --surface: #1e1c17;
+        --ink: #f2efe6;
+        --muted: #a09a8b;
+        --line: #2f2c25;
+        --brand: #58b98a;
+        --brand-ink: #10251b;
+        --protein: #ef7d68;
+        --carbs: #f0b94a;
+        --fat: #7ea3e6;
+    }
+}
+
+@theme inline {
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
+    --color-bg: var(--bg);
+    --color-surface: var(--surface);
+    --color-ink: var(--ink);
+    --color-muted: var(--muted);
+    --color-line: var(--line);
+    --color-brand: var(--brand);
+    --color-brand-ink: var(--brand-ink);
+    --color-protein: var(--protein);
+    --color-carbs: var(--carbs);
+    --color-fat: var(--fat);
+}
+
+@layer base {
+    html {
+        background: var(--bg);
+        color: var(--ink);
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+        @apply bg-bg text-ink font-sans antialiased;
+        overscroll-behavior-y: none;
+    }
+
+    input, select, button {
+        font: inherit;
+    }
+
+    button {
+        cursor: pointer;
+    }
+}
+
+@utility card {
+    @apply rounded-2xl bg-surface border border-line;
+}
+
+@utility btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-3 font-semibold min-h-12 transition active:scale-[.98];
+}
+
+@utility btn-primary {
+    @apply btn bg-brand text-brand-ink;
+}
+
+@utility btn-quiet {
+    @apply btn bg-transparent border border-line text-ink;
+}
+
+@utility btn-danger {
+    @apply btn bg-transparent border border-protein text-protein;
+}
+
+@utility field {
+    @apply w-full rounded-xl border border-line bg-bg px-4 py-3 text-base text-ink placeholder:text-muted focus:outline-2 focus:outline-brand;
+}
+
+@utility chip {
+    @apply inline-flex items-center rounded-full border border-line px-4 py-2 text-sm font-medium min-h-10 text-ink;
+
+    &[aria-pressed='true'] {
+        @apply bg-brand text-brand-ink border-brand;
+    }
+}
+
+@utility label {
+    @apply text-xs font-semibold uppercase tracking-wide text-muted;
 }
