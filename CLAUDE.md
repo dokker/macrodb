@@ -24,6 +24,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `App\Services\FoodCatalog` backs `create_food`, `create_recipe` and `get_food_by_barcode` (local DB first, then `OpenFoodFactsClient`, whose hit is persisted). OFF products without a name or the four core macros are treated as not found.
 - REST routes live in `routes/api.php` (prefix `/api`, unversioned) with Form Requests, thin controllers and resources. **They are not authenticated yet**; auth must land before any deployment.
 - The MCP server is `App\Mcp\Servers\MacroDbServer` at `/mcp` (`routes/ai.php`) with nine tools in `app/Mcp/Tools`, one per spec tool. Tools reuse the Form Request `rules()` for validation and the same services and resources as REST. **Also unauthenticated for now.**
+- Daily targets are set with `artisan targets:set {kcal} {protein} {carbs} {fat} --from=` (no tool or route for it).
 - Not built yet: auth (needs a dependency decision: Sanctum for the API token, Passport or similar for the MCP OAuth), bulk importers (OFF/USDA), photo flow.
 
 ## Decisions already made (see the spec's "Nyitott kérdések" section)
