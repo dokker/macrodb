@@ -56,10 +56,12 @@ class ImportUsda extends Command
             }
         }
 
+        $numberToId = $this->nutrientNumbers($directory);
+
         $values = [];
         foreach ($this->rows("{$directory}/food_nutrient.csv") as $row) {
             $fdcId = (int) $row['fdc_id'];
-            $column = self::NUTRIENTS[(int) $row['nutrient_id']] ?? null;
+            $column = self::NUTRIENTS[$numberToId[$row['nutrient_id']] ?? (int) $row['nutrient_id']] ?? null;
 
             if ($column !== null && isset($names[$fdcId]) && is_numeric($row['amount'])) {
                 $values[$fdcId][$column] = (float) $row['amount'];
@@ -96,6 +98,30 @@ class ImportUsda extends Command
         $this->components->info("Imported {$importer->flush()} USDA foods, skipped {$skipped} without energy value.");
 
         return self::SUCCESS;
+    }
+
+    /**
+     * The Survey (FNDDS) export puts the legacy nutrient number (e.g. 208 for energy) in `food_nutrient.nutrient_id`
+     * instead of the nutrient id (1008); this maps such numbers to ids. Numbers that are also ids are left alone.
+     *
+     * @return array<string, int>
+     */
+    private function nutrientNumbers(string $directory): array
+    {
+        $path = "{$directory}/nutrient.csv";
+
+        if (! is_file($path)) {
+            return [];
+        }
+
+        $ids = [];
+        $numbers = [];
+        foreach ($this->rows($path) as $row) {
+            $ids[(int) $row['id']] = true;
+            $numbers[$row['nutrient_nbr']] = (int) $row['id'];
+        }
+
+        return array_filter($numbers, fn (string|int $number): bool => ! isset($ids[$number]), ARRAY_FILTER_USE_KEY);
     }
 
     /**

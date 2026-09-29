@@ -61,6 +61,34 @@ it('is idempotent when re-run', function () {
     expect(Food::count())->toBe(2);
 });
 
+it('reads the Survey export that uses nutrient numbers instead of ids', function () {
+    $dir = sys_get_temp_dir().'/usda-'.uniqid();
+    mkdir($dir);
+
+    file_put_contents("{$dir}/food.csv", <<<'CSV'
+"fdc_id","data_type","description","food_category_id","publication_date"
+"9","survey_fndds_food","Milk, NFS","1004","2022-10-28"
+CSV);
+    file_put_contents("{$dir}/nutrient.csv", <<<'CSV'
+"id","name","unit_name","nutrient_nbr","rank"
+"1008","Energy","KCAL","208","300.0"
+"1003","Protein","G","203","600.0"
+"1005","Carbohydrate, by difference","G","205","1110.0"
+"1050","Carbohydrate, by summation","G","205.2","1120.0"
+CSV);
+    file_put_contents("{$dir}/food_nutrient.csv", <<<'CSV'
+"id","fdc_id","nutrient_id","amount"
+"1","9","208","61"
+"2","9","203","3.2"
+"3","9","205","4.7"
+CSV);
+
+    $this->artisan('usda:import', ['directory' => $dir])->assertSuccessful();
+
+    $milk = Food::where('external_id', '9')->sole();
+    expect($milk->kcal)->toBe(61.0)->and($milk->protein)->toBe(3.2)->and($milk->carbs)->toBe(4.7);
+});
+
 it('fails on a folder without the CSV files', function () {
     $this->artisan('usda:import', ['directory' => sys_get_temp_dir().'/nope'])->assertFailed();
 });
