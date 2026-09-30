@@ -1,5 +1,6 @@
 import { api } from '../api.js';
 import { shrinkImage, startScanner } from '../scanner.js';
+import { openRecipeForm } from './recipe.js';
 import { errorBox, openSheet, spinner, toast } from '../ui.js';
 import {
     $, $$, MEAL_TYPES, SOURCE_LABELS, debounce, defaultMealType, esc, num, scaleNutrients, sumNutrients, todayStr, toLocalInput,
@@ -114,10 +115,17 @@ function renderResults() {
 
     box.innerHTML = `
         ${results.length ? `<ul class="card divide-y divide-line overflow-hidden">${rows}</ul>` : `<p class="py-6 text-center text-muted">Nincs találat erre: „${esc(query)}”.</p>`}
-        <button class="btn-quiet mt-4 w-full" data-new>+ Új étel felvétele</button>`;
+        <div class="mt-4 grid grid-cols-2 gap-3">
+            <button class="btn-quiet" data-new>+ Új étel</button>
+            <button class="btn-quiet" data-new-recipe>+ Új recept</button>
+        </div>`;
 
     $$('[data-pick]', box).forEach((button) => button.addEventListener('click', () => pickAmount(results[Number(button.dataset.pick)], { sourceText: query })));
     $('[data-new]', box).addEventListener('click', () => newFood({ name: query }));
+    $('[data-new-recipe]', box).addEventListener('click', () => openRecipeForm({
+        name: query,
+        onCreated: (recipe) => pickAmount(recipe, { sourceText: recipe.name }),
+    }));
 }
 
 /** Choose grams for a food or recipe, then put it on the tray. */

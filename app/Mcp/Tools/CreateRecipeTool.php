@@ -11,7 +11,7 @@ use Laravel\Mcp\Response;
 use Laravel\Mcp\Server\Attributes\Description;
 use Laravel\Mcp\Server\Tool;
 
-#[Description('Create a recipe or dish from ingredients in grams. total_weight_g is the weight of the finished dish (water is lost when cooking); per-100 g values are computed from it.')]
+#[Description('Create a recipe or dish from ingredients in grams. total_weight_g is the weight of the finished dish (water is lost when cooking); per-100 g values are computed from it. Optional: without it the sum of the ingredient grams is used.')]
 class CreateRecipeTool extends Tool
 {
     public function handle(Request $request, FoodCatalog $catalog): Response
@@ -28,7 +28,7 @@ class CreateRecipeTool extends Tool
     {
         return [
             'name' => $schema->string()->required(),
-            'total_weight_g' => $schema->number()->description('Weight of the finished dish')->required(),
+            'total_weight_g' => $schema->number()->description('Weight of the finished dish; defaults to the sum of the ingredients'),
             'default_portion_g' => $schema->number(),
             'is_dish' => $schema->boolean(),
             'ingredients' => $schema->array()->items($schema->object([

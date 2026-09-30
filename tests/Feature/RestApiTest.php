@@ -42,6 +42,16 @@ it('creates a recipe from ingredients', function () {
     ])->assertCreated()->assertJsonPath('data.per_100g.kcal', 180);
 });
 
+it('uses the sum of the ingredients as the finished weight when none is given', function () {
+    $flour = foodPer100g('Liszt', kcal: 360);
+    $milk = foodPer100g('Tej', kcal: 60);
+
+    $this->postJson('/api/recipes', [
+        'name' => 'Palacsinta',
+        'ingredients' => [['food_id' => $flour->id, 'grams' => 100], ['food_id' => $milk->id, 'grams' => 100]],
+    ])->assertCreated()->assertJsonPath('data.total_weight_g', 200)->assertJsonPath('data.per_100g.kcal', 210);
+});
+
 it('logs, corrects and deletes meal items end to end', function () {
     $rice = foodPer100g('Rizs', kcal: 130);
 

@@ -13,7 +13,7 @@ class StoreRecipeRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:255'],
-            'total_weight_g' => ['required', 'numeric', 'gt:0'],
+            'total_weight_g' => ['nullable', 'numeric', 'gt:0'],
             'default_portion_g' => ['nullable', 'numeric', 'gt:0'],
             'is_dish' => ['boolean'],
             'ingredients' => ['required', 'array', 'min:1'],
