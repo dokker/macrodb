@@ -23,9 +23,12 @@ function fakeVision(array $items): void
     });
 }
 
-function geminiAnswer(array $items): array
+function geminiAnswer(array|string $items): array
 {
-    return ['candidates' => [['content' => ['parts' => [['text' => json_encode($items)]]]]]];
+    return ['steps' => [
+        ['type' => 'thought'],
+        ['type' => 'model_output', 'content' => [['type' => 'text', 'text' => is_string($items) ? $items : json_encode($items)]]]],
+    ];
 }
 
 beforeEach(function () {
@@ -95,15 +98,15 @@ it('parses the Gemini answer, sends the note and drops unusable items', function
         ->and($items[0]->confidence)->toBe(1.0);
 
     Http::assertSent(fn ($request) => $request->hasHeader('x-goog-api-key', 'test-key')
-        && str_contains($request['contents'][0]['parts'][0]['text'], 'olajban sütve')
-        && $request['contents'][0]['parts'][1]['inline_data']['mime_type'] === 'image/jpeg');
+        && str_contains($request['input'][0]['text'], 'olajban sütve')
+        && $request['input'][1]['mime_type'] === 'image/jpeg');
 });
 
 it('fails clearly on Gemini errors and a missing key', function () {
     Http::fake(['*' => Http::response('', 500)]);
     expect(fn () => app(GeminiVisionProvider::class)->identify('b', 'image/png'))->toThrow(VisionException::class);
 
-    Http::fake(['*' => Http::response(['candidates' => [['content' => ['parts' => [['text' => 'not json']]]]]])]);
+    Http::fake(['*' => Http::response(geminiAnswer('not json'))]);
     expect(fn () => app(GeminiVisionProvider::class)->identify('b', 'image/png'))->toThrow(VisionException::class);
 
     config(['services.gemini.key' => null]);

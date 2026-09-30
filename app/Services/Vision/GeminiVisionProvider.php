@@ -6,7 +6,7 @@ use App\Contracts\VisionProvider;
 use Illuminate\Support\Facades\Http;
 
 /**
- * Gemini adapter (free tier: submitted images may be used by Google to improve its products, which the spec accepts).
+ * Gemini adapter over the Interactions API (free tier: submitted images may be used by Google to improve its products, which the spec accepts).
  */
 class GeminiVisionProvider implements VisionProvider
 {
@@ -32,24 +32,26 @@ TXT;
         $response = Http::baseUrl(config('services.gemini.base_url'))
             ->withHeader('x-goog-api-key', $key)
             ->timeout(45)
-            ->post('/v1beta/models/'.config('services.gemini.model').':generateContent', [
-                'contents' => [[
-                    'parts' => [
-                        ['text' => $prompt],
-                        ['inline_data' => ['mime_type' => $mimeType, 'data' => base64_encode($imageBytes)]],
-                    ],
-                ]],
-                'generationConfig' => [
-                    'responseMimeType' => 'application/json',
-                    'responseSchema' => [
-                        'type' => 'ARRAY',
+            ->retry(2, 1500, fn ($exception) => in_array($exception->getCode(), [429, 503], true), throw: false)
+            ->post('/v1beta/interactions', [
+                'model' => config('services.gemini.model'),
+                'store' => false,
+                'input' => [
+                    ['type' => 'text', 'text' => $prompt],
+                    ['type' => 'image', 'mime_type' => $mimeType, 'data' => base64_encode($imageBytes)],
+                ],
+                'response_format' => [
+                    'type' => 'text',
+                    'mime_type' => 'application/json',
+                    'schema' => [
+                        'type' => 'array',
                         'items' => [
-                            'type' => 'OBJECT',
+                            'type' => 'object',
                             'properties' => [
-                                'name_hu' => ['type' => 'STRING'],
-                                'name_en' => ['type' => 'STRING'],
-                                'grams' => ['type' => 'NUMBER'],
-                                'confidence' => ['type' => 'NUMBER'],
+                                'name_hu' => ['type' => 'string'],
+                                'name_en' => ['type' => 'string'],
+                                'grams' => ['type' => 'number'],
+                                'confidence' => ['type' => 'number'],
                             ],
                             'required' => ['name_hu', 'name_en', 'grams', 'confidence'],
                         ],
@@ -61,7 +63,9 @@ TXT;
             throw new VisionException("The vision model request failed ({$response->status()}).");
         }
 
-        $items = json_decode((string) $response->json('candidates.0.content.parts.0.text'), true);
+        $answer = collect($response->json('steps', []))->firstWhere('type', 'model_output');
+        $text = collect($answer['content'] ?? [])->firstWhere('type', 'text');
+        $items = json_decode((string) ($text['text'] ?? ''), true);
 
         if (! is_array($items)) {
             throw new VisionException('The vision model returned an unreadable answer.');
