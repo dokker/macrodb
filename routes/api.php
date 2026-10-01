@@ -14,6 +14,7 @@ Route::middleware('auth:api')->group(function () {
     Route::get('/foods', [FoodController::class, 'index']);
     Route::get('/foods/barcode/{code}', [FoodController::class, 'barcode']);
     Route::post('/foods', [FoodController::class, 'store']);
+    Route::patch('/foods/{food}', [FoodController::class, 'update']);
     Route::get('/foods/{food}/aliases', [FoodAliasController::class, 'index']);
     Route::post('/foods/{food}/aliases', [FoodAliasController::class, 'store']);
     Route::scopeBindings()->group(function () {

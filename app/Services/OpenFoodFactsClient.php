@@ -21,7 +21,7 @@ class OpenFoodFactsClient
             ->withUserAgent(config('services.open_food_facts.user_agent'))
             ->timeout(8)
             ->get("/api/v2/product/{$barcode}.json", [
-                'fields' => 'code,product_name,product_name_hu,brands,nutriments,serving_quantity',
+                'fields' => 'code,product_name,product_name_hu,product_name_en,brands,nutriments,serving_quantity',
             ]);
 
         if (! $response->successful() || $response->json('status') !== 1) {

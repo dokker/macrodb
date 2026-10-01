@@ -61,6 +61,16 @@ it('is idempotent when re-run', function () {
     expect(Food::count())->toBe(2);
 });
 
+it('keeps the user\'s own name of a food when re-run', function () {
+    $dir = importFixtureDirectory();
+
+    $this->artisan('usda:import', ['directory' => $dir])->assertSuccessful();
+    Food::where('external_id', '4')->update(['display_name' => 'Főtt tojás']);
+    $this->artisan('usda:import', ['directory' => $dir])->assertSuccessful();
+
+    expect(Food::where('external_id', '4')->sole()->displayName())->toBe('Főtt tojás');
+});
+
 it('reads the Survey export that uses nutrient numbers instead of ids', function () {
     $dir = sys_get_temp_dir().'/usda-'.uniqid();
     mkdir($dir);

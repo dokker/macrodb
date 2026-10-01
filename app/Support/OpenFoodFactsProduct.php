@@ -17,7 +17,8 @@ final class OpenFoodFactsProduct
     {
         $barcode = (string) ($product['code'] ?? $fallbackBarcode ?? '');
         $nutriments = $product['nutriments'] ?? [];
-        $name = ($product['product_name_hu'] ?? null) ?: ($product['product_name'] ?? null);
+        // `product_name` is in the product's main language (often Greek, Polish...), so English comes before it.
+        $name = ($product['product_name_hu'] ?? null) ?: ($product['product_name_en'] ?? null) ?: ($product['product_name'] ?? null);
 
         foreach (['energy-kcal_100g', 'proteins_100g', 'carbohydrates_100g', 'fat_100g'] as $key) {
             if (! is_numeric($nutriments[$key] ?? null)) {

@@ -1,5 +1,6 @@
 import { api } from '../api.js';
 import { MEAL_ICONS, icon } from '../icons.js';
+import { renameFood } from './food-name.js';
 import {
     MACROS, confirmSheet, errorBox, macroDots, openSheet, sheetHeader, spinner, toast,
 } from '../ui.js';
@@ -209,7 +210,13 @@ function editItem(item, refresh) {
         <div class="grid grid-cols-[auto_1fr] gap-3">
             <button class="btn-danger" data-delete aria-label="Tétel törlése">${icon('trash')} Törlés</button>
             <button class="btn-primary" data-save>Mentés</button>
-        </div>`);
+        </div>
+        ${item.food_id ? `<button class="mx-auto mt-3 flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-muted" data-rename>${icon('pencil', 'size-4')} Étel átnevezése</button>` : ''}`);
+
+    $('[data-rename]', sheet.el)?.addEventListener('click', () => {
+        sheet.close();
+        renameFood({ id: item.food_id, name: item.name, original_name: item.original_name }, refresh);
+    });
 
     $('[data-save]', sheet.el).addEventListener('click', async () => {
         const grams = Number($('#edit-grams', sheet.el).value);

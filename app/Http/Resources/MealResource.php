@@ -29,7 +29,10 @@ class MealResource extends JsonResource
             )->toArray(),
             'items' => $this->items->map(fn (MealItem $item): array => [
                 'id' => $item->id,
-                'name' => $item->food?->name ?? $item->recipe->name,
+                'food_id' => $item->food_id,
+                'recipe_id' => $item->recipe_id,
+                'name' => $item->food?->displayName() ?? $item->recipe->name,
+                'original_name' => $item->food?->originalName(),
                 'grams' => $item->grams,
                 'source_text' => $item->source_text,
                 'input_method' => $item->input_method->value,

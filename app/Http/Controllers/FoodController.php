@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreFoodRequest;
+use App\Http\Requests\UpdateFoodRequest;
 use App\Http\Resources\FoodResource;
+use App\Models\Food;
 use App\Services\FoodCatalog;
 use App\Services\FoodSearch;
 use Illuminate\Http\JsonResponse;
@@ -39,5 +41,10 @@ class FoodController extends Controller
         $food = $catalog->createFood($request->validated());
 
         return (new FoodResource($food))->response()->setStatusCode(201);
+    }
+
+    public function update(UpdateFoodRequest $request, Food $food, FoodCatalog $catalog): FoodResource
+    {
+        return new FoodResource($catalog->renameFood($food, $request->validated('display_name')));
     }
 }

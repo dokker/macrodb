@@ -11,7 +11,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 
 /**
- * Searches foods (by name and alias) and recipes together.
+ * Searches foods (by source name, the user's own name and alias) and recipes together.
  *
  * Queries are Hungarian and often partial ("zab" should find "zabpehely", "zabtej" and USDA "Oats"
  * through its alias), so matching is substring-based rather than FULLTEXT: FULLTEXT only matches word
@@ -55,13 +55,14 @@ class FoodSearch
     private function searchFoods(string $query, array $tokens, int $limit): Collection
     {
         [$nameRank, $nameBindings] = $this->rankExpression('foods.name', $query);
+        [$displayRank, $displayBindings] = $this->rankExpression('foods.display_name', $query);
         [$aliasRank, $aliasBindings] = $this->rankExpression('food_aliases.name', $query);
 
         $foods = Food::query()
             ->select('foods.*')
             ->selectRaw(
-                "LEAST({$nameRank}, COALESCE((SELECT MIN({$aliasRank}) FROM food_aliases WHERE food_aliases.food_id = foods.id), ?)) AS match_rank",
-                [...$nameBindings, ...$aliasBindings, self::SUBSTRING_RANK],
+                "LEAST({$nameRank}, {$displayRank}, COALESCE((SELECT MIN({$aliasRank}) FROM food_aliases WHERE food_aliases.food_id = foods.id), ?)) AS match_rank",
+                [...$nameBindings, ...$displayBindings, ...$aliasBindings, self::SUBSTRING_RANK],
             )
             ->where(function (Builder $builder) use ($tokens): void {
                 foreach ($tokens as $token) {
@@ -69,19 +70,21 @@ class FoodSearch
 
                     $builder->where(fn (Builder $tokenMatch) => $tokenMatch
                         ->where('foods.name', 'like', $pattern)
+                        ->orWhere('foods.display_name', 'like', $pattern)
                         ->orWhereHas('aliases', fn (Builder $alias) => $alias->where('name', 'like', $pattern)));
                 }
             })
             ->with(['aliases', 'portions'])
             ->orderBy('match_rank')
-            ->orderByRaw('CHAR_LENGTH(foods.name)')
+            ->orderByRaw('CHAR_LENGTH(COALESCE(foods.display_name, foods.name))')
             ->limit($limit)
             ->get();
 
         return $foods->map(fn (Food $food): FoodSearchResult => new FoodSearchResult(
             type: 'food',
             id: $food->id,
-            name: $food->name,
+            name: $food->displayName(),
+            originalName: $food->originalName(),
             brand: $food->brand,
             source: $food->source->value,
             aliases: $food->aliases->map(fn (FoodAlias $alias): string => $alias->name)->values()->all(),
@@ -118,6 +121,7 @@ class FoodSearch
             type: 'recipe',
             id: $recipe->id,
             name: $recipe->name,
+            originalName: null,
             brand: null,
             source: null,
             aliases: [],

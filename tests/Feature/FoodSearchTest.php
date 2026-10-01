@@ -56,6 +56,13 @@ it('ranks names starting with the query ahead of names that only contain it', fu
     expect(searchNames('tej'))->toBe(['Tej 2,8%', 'Zabtej']);
 });
 
+it('finds a renamed food by its own name and still by the original one', function () {
+    Food::where('name', 'Rizs')->sole()->update(['display_name' => 'Jázmin rizs']);
+
+    expect(searchNames('jazmin'))->toBe(['Jázmin rizs'])
+        ->and(searchNames('rizs'))->toBe(['Jázmin rizs']);
+});
+
 it('ignores case and accents', function () {
     expect(searchNames('RANTOTT'))->toBe(['Rántott csirkemáj']);
 });

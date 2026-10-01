@@ -26,6 +26,18 @@ class FoodCatalog
     }
 
     /**
+     * Sets the user's own name for a food; an empty name, or one equal to the source name, restores the original.
+     */
+    public function renameFood(Food $food, ?string $displayName): Food
+    {
+        $displayName = trim((string) $displayName);
+
+        $food->update(['display_name' => $displayName === '' || $displayName === $food->name ? null : $displayName]);
+
+        return $food;
+    }
+
+    /**
      * Adds a search name (typically Hungarian for an English USDA food); an alias that already exists is kept as is.
      */
     public function addAlias(Food $food, string $name, string $lang = 'hu'): FoodAlias

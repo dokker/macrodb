@@ -1,5 +1,6 @@
 import { api } from '../api.js';
 import { shrinkImage, startScanner } from '../scanner.js';
+import { renameFood } from './food-name.js';
 import { openRecipeForm } from './recipe.js';
 import { MEAL_ICONS, icon } from '../icons.js';
 import {
@@ -176,13 +177,23 @@ function pickAmount(food, { sourceText, inputMethod = 'szöveg' }) {
         <input id="amount" class="field mb-3 mt-1.5 text-lg font-semibold" type="number" inputmode="decimal" min="1" step="any" value="${food.default_portion_g ?? 100}">
         <div class="mb-5" data-preview aria-live="polite"></div>
         <button class="btn-primary w-full" data-add>${icon('plus')} Tálcára</button>
-        ${food.type === 'recipe' ? '' : '<button class="mx-auto mt-3 flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-muted" data-aliases></button>'}`);
+        ${food.type === 'recipe' ? '' : `<div class="mt-3 flex justify-center gap-1">
+            <button class="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-muted" data-rename>${icon('pencil', 'size-4')} Átnevezés</button>
+            <button class="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-muted" data-aliases></button>
+        </div>`}`);
 
     const amount = $('#amount', sheet.el);
     const aliasButton = $('[data-aliases]', sheet.el);
     const renderAliasButton = () => {
-        aliasButton.innerHTML = `${icon('pencil', 'size-4')} Keresőnevek${food.aliases?.length ? ` · ${food.aliases.length}` : ''}`;
+        aliasButton.innerHTML = `${icon('search', 'size-4')} Keresőnevek${food.aliases?.length ? ` · ${food.aliases.length}` : ''}`;
     };
+
+    $('[data-rename]', sheet.el)?.addEventListener('click', () => renameFood(food, (saved) => {
+        food.name = saved.name;
+        food.original_name = saved.original_name;
+        $('h2', sheet.el).textContent = food.name;
+        renderResults();
+    }));
 
     if (aliasButton) {
         renderAliasButton();

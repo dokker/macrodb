@@ -54,6 +54,12 @@ it('persists a product fetched from Open Food Facts on a local miss', function (
     Http::assertSentCount(1);
 });
 
+it('prefers the English Open Food Facts name over the main-language one when there is no Hungarian name', function () {
+    Http::fake(['*' => Http::response(offProduct(['product_name_hu' => '', 'product_name' => 'Γιαούρτι', 'product_name_en' => 'Greek yogurt']))]);
+
+    expect(app(FoodCatalog::class)->findByBarcode('5990000000001')->name)->toBe('Greek yogurt');
+});
+
 it('derives sodium from salt when OFF gives no sodium value', function () {
     Http::fake(['*' => Http::response(offProduct(['nutriments' => ['energy-kcal_100g' => 1, 'proteins_100g' => 1, 'carbohydrates_100g' => 1, 'fat_100g' => 1, 'salt_100g' => 2.5]]))]);
 

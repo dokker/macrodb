@@ -11,7 +11,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 // "food" is uncountable for the pluralizer, so the table name must be explicit.
 #[Table('foods')]
-#[Fillable(['source', 'external_id', 'barcode', 'name', 'brand', 'kcal', 'protein', 'carbs', 'fat', 'fiber', 'sugar', 'serving_size_g', 'saturated_fat_g', 'sodium_mg', 'potassium_mg', 'calcium_mg', 'iron_mg', 'magnesium_mg', 'vitamin_c_mg', 'vitamin_d_ug'])]
+#[Fillable(['source', 'external_id', 'barcode', 'name', 'display_name', 'brand', 'kcal', 'protein', 'carbs', 'fat', 'fiber', 'sugar', 'serving_size_g', 'saturated_fat_g', 'sodium_mg', 'potassium_mg', 'calcium_mg', 'iron_mg', 'magnesium_mg', 'vitamin_c_mg', 'vitamin_d_ug'])]
 class Food extends Model
 {
     /**
@@ -28,6 +28,22 @@ class Food extends Model
     public function portions(): HasMany
     {
         return $this->hasMany(FoodPortion::class);
+    }
+
+    /**
+     * The user's own name when set, otherwise the name from the source. Use this wherever a food is shown.
+     */
+    public function displayName(): string
+    {
+        return $this->display_name ?? $this->name;
+    }
+
+    /**
+     * The name from the source, but only when the user renamed the food (null otherwise).
+     */
+    public function originalName(): ?string
+    {
+        return $this->display_name === null ? null : $this->name;
     }
 
     public function nutrientsPer100g(): Nutrients

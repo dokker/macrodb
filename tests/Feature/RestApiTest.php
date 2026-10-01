@@ -126,6 +126,36 @@ it('logs, corrects and deletes meal items end to end', function () {
     expect(Meal::count())->toBe(0)->and(MealItem::count())->toBe(0);
 });
 
+it('renames a food so lists and logged meals show the new name, and restores the original', function () {
+    $food = foodPer100g('Γιαούρτι στραγγιστό', kcal: 95);
+
+    $this->patchJson("/api/foods/{$food->id}", ['display_name' => '  Görög joghurt  '])
+        ->assertOk()
+        ->assertJsonPath('data.name', 'Görög joghurt')
+        ->assertJsonPath('data.original_name', 'Γιαούρτι στραγγιστό');
+
+    $this->getJson('/api/foods?q=gorog')->assertJsonPath('data.0.name', 'Görög joghurt');
+    $this->postJson('/api/meals', [
+        'eaten_at' => '2026-09-28T08:00:00+02:00',
+        'meal_type' => 'reggeli',
+        'items' => [['food_id' => $food->id, 'grams' => 150, 'input_method' => 'vonalkód']],
+    ])->assertCreated()->assertJsonPath('data.items.0.name', 'Görög joghurt');
+    $this->getJson('/api/summary/daily?date=2026-09-28')
+        ->assertJsonPath('data.meals.0.items.0.name', 'Görög joghurt')
+        ->assertJsonPath('data.meals.0.items.0.original_name', 'Γιαούρτι στραγγιστό');
+
+    $this->patchJson("/api/foods/{$food->id}", ['display_name' => null])
+        ->assertOk()
+        ->assertJsonPath('data.name', 'Γιαούρτι στραγγιστό')
+        ->assertJsonPath('data.original_name', null);
+});
+
+it('requires the display name field when renaming a food', function () {
+    $food = foodPer100g('Rizs', kcal: 130);
+
+    $this->patchJson("/api/foods/{$food->id}", [])->assertJsonValidationErrors('display_name');
+});
+
 it('validates meal items', function (array $item) {
     $this->postJson('/api/meals', ['eaten_at' => now()->toIso8601String(), 'meal_type' => 'snack', 'items' => [$item]])
         ->assertUnprocessable();

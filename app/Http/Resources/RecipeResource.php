@@ -26,7 +26,7 @@ class RecipeResource extends JsonResource
             'ingredient_total_g' => $this->whenLoaded('items', fn (): float => $this->items->sum('grams')),
             'ingredients' => $this->whenLoaded('items', fn (): array => $this->items->map(fn ($item): array => [
                 'food_id' => $item->food_id,
-                'name' => $item->food->name,
+                'name' => $item->food->displayName(),
                 'grams' => $item->grams,
                 'per_100g' => $item->food->nutrientsPer100g()->toArray(),
             ])->all()),
