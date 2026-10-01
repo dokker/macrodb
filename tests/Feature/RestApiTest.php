@@ -158,3 +158,36 @@ it('adds an alias that makes an English food searchable and ignores duplicates',
     $this->getJson('/api/foods?q=zabpehely')->assertJsonPath('data.0.name', 'Oats');
     expect($oats->aliases()->count())->toBe(1);
 });
+
+it('lists, renames and deletes the aliases of a food', function () {
+    $oats = foodPer100g('Oats', kcal: 380);
+    $alias = $oats->aliases()->create(['name' => 'zab']);
+    $oats->aliases()->create(['name' => 'zabpehely']);
+
+    $this->getJson("/api/foods/{$oats->id}/aliases")
+        ->assertOk()
+        ->assertJsonPath('data.0.id', $alias->id)
+        ->assertJsonPath('data.1.name', 'zabpehely');
+
+    $this->patchJson("/api/foods/{$oats->id}/aliases/{$alias->id}", ['name' => 'Zabpehely'])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('name');
+
+    $this->patchJson("/api/foods/{$oats->id}/aliases/{$alias->id}", ['name' => 'zabkorpa'])
+        ->assertOk()
+        ->assertJsonPath('data.name', 'zabkorpa');
+
+    $this->deleteJson("/api/foods/{$oats->id}/aliases/{$alias->id}")->assertNoContent();
+
+    expect($oats->aliases()->pluck('name')->all())->toBe(['zabpehely']);
+});
+
+it('only changes an alias through the food it belongs to', function () {
+    $oats = foodPer100g('Oats', kcal: 380);
+    $rice = foodPer100g('Rice', kcal: 360);
+    $alias = $oats->aliases()->create(['name' => 'zab']);
+
+    $this->deleteJson("/api/foods/{$rice->id}/aliases/{$alias->id}")->assertNotFound();
+
+    expect($alias->fresh())->not->toBeNull();
+});

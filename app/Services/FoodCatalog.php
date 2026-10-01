@@ -33,6 +33,18 @@ class FoodCatalog
         return $food->aliases()->firstOrCreate(['name' => $name], ['lang' => $lang]);
     }
 
+    public function renameAlias(FoodAlias $alias, string $name): FoodAlias
+    {
+        $alias->update(['name' => $name]);
+
+        return $alias;
+    }
+
+    public function deleteAlias(FoodAlias $alias): void
+    {
+        $alias->delete();
+    }
+
     /**
      * Local database first; Open Food Facts only on a miss, and the hit is persisted.
      */

@@ -3,7 +3,7 @@ import { shrinkImage, startScanner } from '../scanner.js';
 import { openRecipeForm } from './recipe.js';
 import { MEAL_ICONS, icon } from '../icons.js';
 import {
-    errorBox, macroDots, macroStats, openSheet, pageHeader, sheetHeader, spinner, toast,
+    confirmSheet, errorBox, macroDots, macroStats, openSheet, pageHeader, sheetHeader, spinner, toast,
 } from '../ui.js';
 import {
     $, $$, MEAL_TYPES, SOURCE_LABELS, debounce, defaultMealType, esc, num, scaleNutrients, sumNutrients, todayStr, toLocalInput,
@@ -175,9 +175,23 @@ function pickAmount(food, { sourceText, inputMethod = 'szöveg' }) {
         <label class="label" for="amount">Mennyiség (gramm)</label>
         <input id="amount" class="field mb-3 mt-1.5 text-lg font-semibold" type="number" inputmode="decimal" min="1" step="any" value="${food.default_portion_g ?? 100}">
         <div class="mb-5" data-preview aria-live="polite"></div>
-        <button class="btn-primary w-full" data-add>${icon('plus')} Tálcára</button>`);
+        <button class="btn-primary w-full" data-add>${icon('plus')} Tálcára</button>
+        ${food.type === 'recipe' ? '' : '<button class="mx-auto mt-3 flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-muted" data-aliases></button>'}`);
 
     const amount = $('#amount', sheet.el);
+    const aliasButton = $('[data-aliases]', sheet.el);
+    const renderAliasButton = () => {
+        aliasButton.innerHTML = `${icon('pencil', 'size-4')} Keresőnevek${food.aliases?.length ? ` · ${food.aliases.length}` : ''}`;
+    };
+
+    if (aliasButton) {
+        renderAliasButton();
+        aliasButton.addEventListener('click', () => editAliases(food, () => {
+            renderAliasButton();
+            renderResults();
+        }));
+    }
+
     const update = () => {
         $('[data-preview]', sheet.el).innerHTML = macroStats(scaleNutrients(food.per_100g, Number(amount.value) || 0));
     };
@@ -202,6 +216,122 @@ function pickAmount(food, { sourceText, inputMethod = 'szöveg' }) {
         sheet.close();
         toast(`${food.name} hozzáadva`);
     });
+}
+
+/** Add, rename and delete the search names of a food; `onChange` runs after every saved change. */
+function editAliases(food, onChange) {
+    let aliases = [];
+    let editing = null;
+
+    const sheet = openSheet(`
+        ${sheetHeader('Keresőnevek', `${esc(food.name)} · a keresés ezeken a neveken is megtalálja`)}
+        <ul class="mb-5 divide-y divide-line" data-list aria-live="polite">${spinner()}</ul>
+        <form class="flex gap-2" data-new-alias>
+            <label class="sr-only" for="alias-name">Új keresőnév</label>
+            <input id="alias-name" class="field" autocomplete="off" maxlength="255" placeholder="Új keresőnév, pl. zabpehely" required>
+            <button class="btn-primary shrink-0" aria-label="Keresőnév hozzáadása">${icon('plus')}</button>
+        </form>`);
+
+    const list = $('[data-list]', sheet.el);
+
+    const saved = (next) => {
+        aliases = next.sort((a, b) => a.name.localeCompare(b.name, 'hu'));
+        food.aliases = aliases.map((alias) => alias.name);
+        editing = null;
+        render();
+        onChange();
+    };
+
+    const render = () => {
+        list.innerHTML = aliases.length ? aliases.map((alias) => (editing === alias.id ? `
+            <li><form class="flex items-center gap-2 py-2" data-rename="${alias.id}">
+                <label class="sr-only" for="alias-${alias.id}">Keresőnév</label>
+                <input id="alias-${alias.id}" class="field" autocomplete="off" maxlength="255" value="${esc(alias.name)}" required>
+                <button class="btn-primary shrink-0">Mentés</button>
+                <button type="button" class="icon-btn" data-cancel aria-label="Mégse">${icon('x', 'size-4')}</button>
+            </form></li>` : `
+            <li class="flex items-center gap-2 py-2">
+                <span class="min-w-0 flex-1 truncate text-[15px]">${esc(alias.name)}${alias.lang === 'hu' ? '' : ` <span class="text-xs text-muted">${esc(alias.lang)}</span>`}</span>
+                <button class="icon-btn" data-edit="${alias.id}" aria-label="${esc(alias.name)} átnevezése">${icon('pencil', 'size-4')}</button>
+                <button class="icon-btn text-muted" data-remove="${alias.id}" aria-label="${esc(alias.name)} törlése">${icon('trash', 'size-4')}</button>
+            </li>`)).join('') : '<li class="py-3 text-sm text-muted">Még nincs keresőneve.</li>';
+
+        $$('[data-edit]', list).forEach((button) => button.addEventListener('click', () => {
+            editing = Number(button.dataset.edit);
+            render();
+            $(`#alias-${editing}`, list)?.select();
+        }));
+
+        $('[data-cancel]', list)?.addEventListener('click', () => {
+            editing = null;
+            render();
+        });
+
+        $('[data-rename]', list)?.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const id = Number(event.currentTarget.dataset.rename);
+            const name = $(`#alias-${id}`, list).value.trim();
+
+            try {
+                const alias = await api(`/foods/${food.id}/aliases/${id}`, { method: 'PATCH', body: { name } });
+                saved(aliases.map((current) => (current.id === id ? alias : current)));
+                toast('Keresőnév átnevezve');
+            } catch (error) {
+                toast(error.message, 'error');
+            }
+        });
+
+        $$('[data-remove]', list).forEach((button) => button.addEventListener('click', async () => {
+            const id = Number(button.dataset.remove);
+            const alias = aliases.find((current) => current.id === id);
+
+            if (!await confirmSheet(`Törlöd ezt a keresőnevet: ${esc(alias.name)}?`)) return;
+
+            try {
+                await api(`/foods/${food.id}/aliases/${id}`, { method: 'DELETE' });
+                saved(aliases.filter((current) => current.id !== id));
+                toast('Keresőnév törölve');
+            } catch (error) {
+                toast(error.message, 'error');
+            }
+        }));
+    };
+
+    const load = async () => {
+        list.innerHTML = spinner();
+
+        try {
+            aliases = await api(`/foods/${food.id}/aliases`);
+            render();
+        } catch (error) {
+            list.innerHTML = `<li>${errorBox(esc(error.message))}</li>`;
+            $('[data-retry]', list).addEventListener('click', load);
+        }
+    };
+
+    $('[data-new-alias]', sheet.el).addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const input = $('#alias-name', sheet.el);
+        const name = input.value.trim();
+
+        if (!name) return;
+
+        try {
+            const alias = await api(`/foods/${food.id}/aliases`, { method: 'POST', body: { name } });
+            input.value = '';
+
+            if (aliases.some((current) => current.id === alias.id)) {
+                toast('Ez a keresőnév már megvan');
+            } else {
+                saved([...aliases, alias]);
+                toast('Keresőnév hozzáadva');
+            }
+        } catch (error) {
+            toast(error.message, 'error');
+        }
+    });
+
+    load();
 }
 
 function addToCart(food, grams, sourceText, inputMethod) {

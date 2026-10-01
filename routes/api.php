@@ -14,7 +14,12 @@ Route::middleware('auth:api')->group(function () {
     Route::get('/foods', [FoodController::class, 'index']);
     Route::get('/foods/barcode/{code}', [FoodController::class, 'barcode']);
     Route::post('/foods', [FoodController::class, 'store']);
+    Route::get('/foods/{food}/aliases', [FoodAliasController::class, 'index']);
     Route::post('/foods/{food}/aliases', [FoodAliasController::class, 'store']);
+    Route::scopeBindings()->group(function () {
+        Route::patch('/foods/{food}/aliases/{alias}', [FoodAliasController::class, 'update']);
+        Route::delete('/foods/{food}/aliases/{alias}', [FoodAliasController::class, 'destroy']);
+    });
     Route::get('/recipes', [RecipeController::class, 'index']);
     Route::get('/recipes/{recipe}', [RecipeController::class, 'show']);
     Route::post('/recipes', [RecipeController::class, 'store']);
