@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\FoodSource;
+use App\Exceptions\RecipeInUseException;
 use App\Models\Food;
 use App\Models\FoodAlias;
 use App\Models\Recipe;
@@ -61,7 +62,7 @@ class FoodCatalog
     {
         return $this->createRecipe(
             $data['name'],
-            isset($data['total_weight_g']) ? (float) $data['total_weight_g'] : array_sum(array_column($data['ingredients'], 'grams')),
+            $this->finishedWeight($data),
             $data['ingredients'],
             isset($data['default_portion_g']) ? (float) $data['default_portion_g'] : null,
             $data['is_dish'] ?? true,
@@ -75,13 +76,7 @@ class FoodCatalog
      */
     public function createRecipe(string $name, float $totalWeightG, array $ingredients, ?float $defaultPortionG = null, bool $isDish = true, array $portions = []): Recipe
     {
-        if ($ingredients === []) {
-            throw new InvalidArgumentException('A recipe needs at least one ingredient.');
-        }
-
-        if ($totalWeightG <= 0) {
-            throw new InvalidArgumentException('The finished weight must be greater than zero.');
-        }
+        $this->assertValidRecipe($ingredients, $totalWeightG);
 
         return DB::transaction(function () use ($name, $totalWeightG, $ingredients, $defaultPortionG, $isDish, $portions): Recipe {
             $recipe = Recipe::create([
@@ -96,5 +91,72 @@ class FoodCatalog
 
             return $recipe->load('items.food', 'portions');
         });
+    }
+
+    /**
+     * Replaces a recipe's fields, ingredients and portions with the validated request data. Logged meals follow
+     * automatically, because their macros are derived from the recipe.
+     *
+     * @param  array{name: string, ingredients: list<array{food_id: int, grams: float|int}>, total_weight_g?: float|int|null, default_portion_g?: float|int|null, is_dish?: bool, portions?: list<array{label: string, grams: float|int}>}  $data
+     */
+    public function updateRecipe(Recipe $recipe, array $data): Recipe
+    {
+        $totalWeightG = $this->finishedWeight($data);
+
+        $this->assertValidRecipe($data['ingredients'], $totalWeightG);
+
+        return DB::transaction(function () use ($recipe, $data, $totalWeightG): Recipe {
+            $recipe->update([
+                'name' => $data['name'],
+                'total_weight_g' => $totalWeightG,
+                'default_portion_g' => isset($data['default_portion_g']) ? (float) $data['default_portion_g'] : null,
+                'is_dish' => $data['is_dish'] ?? true,
+            ]);
+
+            $recipe->items()->delete();
+            $recipe->items()->createMany($data['ingredients']);
+            $recipe->portions()->delete();
+            $recipe->portions()->createMany($data['portions'] ?? []);
+
+            return $recipe->load('items.food', 'portions');
+        });
+    }
+
+    /**
+     * @throws RecipeInUseException when meals were logged with the recipe
+     */
+    public function deleteRecipe(Recipe $recipe): void
+    {
+        if ($recipe->mealItems()->exists()) {
+            throw new RecipeInUseException;
+        }
+
+        $recipe->delete();
+    }
+
+    /**
+     * The given finished weight, or the plain sum of the ingredient grams when none is given.
+     *
+     * @param  array{ingredients: list<array{grams: float|int}>, total_weight_g?: float|int|null}  $data
+     */
+    private function finishedWeight(array $data): float
+    {
+        return isset($data['total_weight_g'])
+            ? (float) $data['total_weight_g']
+            : (float) array_sum(array_column($data['ingredients'], 'grams'));
+    }
+
+    /**
+     * @param  list<array{food_id: int, grams: float|int}>  $ingredients
+     */
+    private function assertValidRecipe(array $ingredients, float $totalWeightG): void
+    {
+        if ($ingredients === []) {
+            throw new InvalidArgumentException('A recipe needs at least one ingredient.');
+        }
+
+        if ($totalWeightG <= 0) {
+            throw new InvalidArgumentException('The finished weight must be greater than zero.');
+        }
     }
 }

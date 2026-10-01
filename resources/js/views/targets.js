@@ -1,12 +1,15 @@
 import { api } from '../api.js';
-import { confirmSheet, errorBox, spinner, toast } from '../ui.js';
+import { icon } from '../icons.js';
+import {
+    confirmSheet, errorBox, pageHeader, spinner, toast,
+} from '../ui.js';
 import { $, $$, esc, num, todayStr } from '../util.js';
 
 const FIELDS = [
-    ['kcal', 'Kalória', 'kcal', '1'],
-    ['protein', 'Fehérje', 'g', 'any'],
-    ['carbs', 'Szénhidrát', 'g', 'any'],
-    ['fat', 'Zsír', 'g', 'any'],
+    ['kcal', 'Kalória', 'kcal', '1', 'bg-brand'],
+    ['protein', 'Fehérje', 'g', 'any', 'bg-protein'],
+    ['carbs', 'Szénhidrát', 'g', 'any', 'bg-carbs'],
+    ['fat', 'Zsír', 'g', 'any', 'bg-fat'],
 ];
 
 export async function renderTargets(view) {
@@ -27,30 +30,26 @@ export async function renderTargets(view) {
         const prefill = data.current ?? {};
 
         view.innerHTML = `
-            <header class="mb-4">
-                <a href="#/history" class="text-sm text-muted">‹ Napló</a>
-                <h1 class="text-xl font-bold">Napi célok</h1>
-                <p class="text-sm text-muted">A megadott naptól érvényes, a következő beállításig.</p>
-            </header>
+            ${pageHeader({ title: 'Napi célok', subtitle: 'A megadott naptól érvényes, a következő beállításig.' })}
             <form class="card space-y-4 p-4" novalidate>
                 <div class="grid grid-cols-2 gap-3">
-                    ${FIELDS.map(([name, label, unit, step]) => `
+                    ${FIELDS.map(([name, label, unit, step, dot]) => `
                         <div>
-                            <label class="label" for="t-${name}">${label} (${unit})</label>
-                            <input id="t-${name}" name="${name}" class="field mt-1" type="number" inputmode="decimal" min="0" step="${step}" required value="${prefill[name] ?? ''}">
+                            <label class="label inline-flex items-center gap-1.5" for="t-${name}"><span class="size-2 rounded-full ${dot}"></span>${label} (${unit})</label>
+                            <input id="t-${name}" name="${name}" class="field mt-1.5 text-lg font-semibold tabular-nums" type="number" inputmode="decimal" min="0" step="${step}" required value="${prefill[name] ?? ''}">
                         </div>`).join('')}
                 </div>
                 <div>
                     <label class="label" for="t-valid_from">Érvényes ettől</label>
-                    <input id="t-valid_from" name="valid_from" class="field mt-1" type="date" required value="${todayStr()}">
+                    <input id="t-valid_from" name="valid_from" class="field mt-1.5" type="date" required value="${todayStr()}">
                 </div>
-                <p class="rounded-xl bg-bg p-3 text-sm tabular-nums text-muted" data-check aria-live="polite"></p>
-                <p class="h-5 text-sm text-protein" data-error role="alert"></p>
+                <p class="tile flex gap-2.5 p-3 text-sm tabular-nums text-muted" aria-live="polite"><span class="shrink-0">${icon('info', 'size-[18px]')}</span><span data-check></span></p>
+                <p class="text-sm text-protein empty:hidden" data-error role="alert"></p>
                 <button class="btn-primary w-full" type="submit">Mentés</button>
             </form>
-            <section class="mt-6" aria-label="Korábbi beállítások">
-                <h2 class="label mb-2">Beállítások</h2>
-                ${data.history.length === 0 ? '<p class="text-muted">Még nincs beállított cél.</p>' : `<ul class="card divide-y divide-line overflow-hidden">${data.history.map(historyRow).join('')}</ul>`}
+            <section class="mt-8" aria-labelledby="targets-history">
+                <h2 id="targets-history" class="section-title mb-2">Korábbi beállítások</h2>
+                ${data.history.length === 0 ? '<p class="tile p-4 text-sm text-muted">Még nincs beállított cél.</p>' : `<ul class="card divide-y divide-line overflow-hidden">${data.history.map(historyRow).join('')}</ul>`}
             </section>`;
 
         const form = $('form', view);
@@ -107,11 +106,11 @@ export async function renderTargets(view) {
 
 function historyRow(target) {
     return `
-        <li class="flex items-center gap-2 pr-2">
+        <li class="flex items-center gap-2 pr-3">
             <button data-load="${target.id}" class="min-w-0 flex-1 px-4 py-3 text-left" aria-label="${target.valid_from} beállítás betöltése">
-                <span class="block font-medium">${target.valid_from}</span>
-                <span class="text-sm tabular-nums text-muted">${num(target.kcal)} kcal · F ${num(target.protein)} · Sz ${num(target.carbs)} · Zs ${num(target.fat)} g</span>
+                <span class="block text-[15px] font-medium">${target.valid_from}</span>
+                <span class="text-xs tabular-nums text-muted">${num(target.kcal)} kcal · F ${num(target.protein)} · Sz ${num(target.carbs)} · Zs ${num(target.fat)} g</span>
             </button>
-            <button data-delete="${target.id}" class="btn-quiet !min-h-10 !px-3" aria-label="${target.valid_from} beállítás törlése">✕</button>
+            <button data-delete="${target.id}" class="icon-btn text-muted" aria-label="${target.valid_from} beállítás törlése">${icon('trash', 'size-4')}</button>
         </li>`;
 }

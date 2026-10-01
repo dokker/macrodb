@@ -1,7 +1,10 @@
 import { api } from '../api.js';
 import { shrinkImage, startScanner } from '../scanner.js';
 import { openRecipeForm } from './recipe.js';
-import { errorBox, openSheet, spinner, toast } from '../ui.js';
+import { MEAL_ICONS, icon } from '../icons.js';
+import {
+    errorBox, macroDots, macroStats, openSheet, pageHeader, sheetHeader, spinner, toast,
+} from '../ui.js';
 import {
     $, $$, MEAL_TYPES, SOURCE_LABELS, debounce, defaultMealType, esc, num, scaleNutrients, sumNutrients, todayStr, toLocalInput,
 } from '../util.js';
@@ -32,6 +35,7 @@ let query = '';
 let onCartChange = () => {};
 
 export const cartCount = () => cart.items.length;
+export const cartKcal = () => cartTotals().kcal;
 export const subscribeCart = (fn) => { onCartChange = fn; };
 const changed = () => { persist(); onCartChange(); };
 
@@ -43,14 +47,23 @@ export function renderAdd(view, params) {
     }
 
     view.innerHTML = `
-        <header class="mb-4"><h1 class="text-xl font-bold">Étel hozzáadása</h1></header>
-        <div class="flex gap-2">
+        ${pageHeader({ title: 'Hozzáadás', subtitle: 'Keress, olvass be vonalkódot, vagy fotózd le, amit eszel.' })}
+        <div class="relative">
             <label class="sr-only" for="search">Keresés</label>
-            <input id="search" class="field" type="search" enterkeyhint="search" autocomplete="off" placeholder="Pl. zab, tojás, rántott hús" value="${esc(query)}">
-            <button class="btn-quiet !px-3" data-scan aria-label="Vonalkód beolvasása">${icon('barcode')}</button>
-            <button class="btn-quiet !px-3" data-photo aria-label="Fotó alapú felismerés">${icon('camera')}</button>
+            <span class="pointer-events-none absolute inset-y-0 left-4 grid place-items-center text-muted">${icon('search')}</span>
+            <input id="search" class="field !rounded-full !pl-12" type="search" enterkeyhint="search" autocomplete="off" placeholder="Pl. zab, tojás, rántott hús" value="${esc(query)}">
         </div>
-        <section id="results" class="mt-4" aria-live="polite"></section>`;
+        <div class="mt-3 grid grid-cols-2 gap-2">
+            <button class="tile flex items-center gap-3 p-3 text-left transition active:scale-[.98]" data-scan>
+                <span class="badge bg-brand text-brand-ink">${icon('barcode')}</span>
+                <span class="min-w-0"><span class="block text-sm font-semibold">Vonalkód</span><span class="block text-xs text-muted">Bolti termék</span></span>
+            </button>
+            <button class="tile flex items-center gap-3 p-3 text-left transition active:scale-[.98]" data-photo>
+                <span class="badge bg-brand text-brand-ink">${icon('camera')}</span>
+                <span class="min-w-0"><span class="block text-sm font-semibold">Fotó</span><span class="block text-xs text-muted">Felismerés képről</span></span>
+            </button>
+        </div>
+        <section id="results" class="mt-6" aria-live="polite"></section>`;
 
     const input = $('#search', view);
     const search = debounce(runSearch, 250);
@@ -60,7 +73,18 @@ export function renderAdd(view, params) {
 
     renderResults();
 
-    if (!query) {
+    const open = params.get('open');
+
+    if (open) {
+        params.delete('open');
+        history.replaceState(null, '', `#/add${params.size ? `?${params}` : ''}`);
+    }
+
+    if (open === 'scan') {
+        openScanner();
+    } else if (open === 'photo') {
+        openPhoto();
+    } else if (!query) {
         input.focus();
     }
 }
@@ -96,35 +120,44 @@ function renderResults() {
 
     if (!box) return;
 
-    if (!query) {
-        box.innerHTML = '<p class="py-10 text-center text-muted">Kezdj el gépelni, vagy használd a vonalkód- és fotógombot.</p>';
-
-        return;
-    }
+    const createRows = `
+        <h2 class="section-title mb-2 ${query ? 'mt-8' : ''}">Saját felvitel</h2>
+        <ul class="card divide-y divide-line overflow-hidden">
+            <li><button class="flex w-full items-center gap-3 px-4 py-3 text-left transition active:bg-soft" data-new>
+                <span class="badge bg-soft text-ink">${icon('leaf', 'size-[18px]')}</span>
+                <span class="min-w-0 flex-1"><span class="block text-[15px] font-medium">Új étel</span><span class="block text-xs text-muted">Tápértékek 100 g-ra, akár vonalkóddal</span></span>
+                <span class="text-muted">${icon('right', 'size-4')}</span>
+            </button></li>
+            <li><button class="flex w-full items-center gap-3 px-4 py-3 text-left transition active:bg-soft" data-new-recipe>
+                <span class="badge bg-soft text-ink">${icon('bowl', 'size-[18px]')}</span>
+                <span class="min-w-0 flex-1"><span class="block text-[15px] font-medium">Új recept</span><span class="block text-xs text-muted">Összetevőkből, a kész étel tömegével</span></span>
+                <span class="text-muted">${icon('right', 'size-4')}</span>
+            </button></li>
+        </ul>`;
 
     const rows = results.map((food, index) => `
         <li>
-            <button data-pick="${index}" class="flex w-full items-center justify-between gap-3 px-4 py-3 text-left">
-                <span class="min-w-0">
-                    <span class="block truncate font-medium">${esc(food.name)}</span>
-                    <span class="block truncate text-sm text-muted">${[food.brand, food.type === 'recipe' ? 'Fogás' : SOURCE_LABELS[food.source], food.aliases[0]].filter(Boolean).map(esc).join(' · ')}</span>
+            <button data-pick="${index}" class="flex w-full items-center gap-3 px-4 py-3 text-left transition active:bg-soft">
+                <span class="badge ${food.type === 'recipe' ? 'bg-brand/10 text-brand' : 'bg-soft text-ink'}">${icon(food.type === 'recipe' ? 'bowl' : 'leaf', 'size-[18px]')}</span>
+                <span class="min-w-0 flex-1">
+                    <span class="block truncate text-[15px] font-medium">${esc(food.name)}</span>
+                    <span class="block truncate text-xs text-muted">${[food.brand, food.type === 'recipe' ? 'Fogás' : SOURCE_LABELS[food.source], food.aliases[0]].filter(Boolean).map(esc).join(' · ')}</span>
                 </span>
-                <span class="shrink-0 text-right text-sm tabular-nums text-muted">${num(food.per_100g.kcal)} kcal<br>/100 g</span>
+                <span class="shrink-0 text-right text-sm font-medium tabular-nums">${num(food.per_100g.kcal)} kcal<span class="block text-xs font-normal text-muted">/100 g</span></span>
             </button>
         </li>`).join('');
 
-    box.innerHTML = `
-        ${results.length ? `<ul class="card divide-y divide-line overflow-hidden">${rows}</ul>` : `<p class="py-6 text-center text-muted">Nincs találat erre: „${esc(query)}”.</p>`}
-        <div class="mt-4 grid grid-cols-2 gap-3">
-            <button class="btn-quiet" data-new>+ Új étel</button>
-            <button class="btn-quiet" data-new-recipe>+ Új recept</button>
-        </div>`;
+    box.innerHTML = !query ? createRows : `
+        ${results.length
+            ? `<p class="section-title mb-2">Találatok <span class="font-normal text-muted">${results.length}</span></p><ul class="card divide-y divide-line overflow-hidden">${rows}</ul>`
+            : `<div class="tile p-6 text-center"><p class="font-semibold">Nincs találat erre: „${esc(query)}”</p><p class="mt-1 text-sm text-muted">Próbálj rövidebb szót, vagy vidd fel lent.</p></div>`}
+        ${createRows}`;
 
     $$('[data-pick]', box).forEach((button) => button.addEventListener('click', () => pickAmount(results[Number(button.dataset.pick)], { sourceText: query })));
     $('[data-new]', box).addEventListener('click', () => newFood({ name: query }));
     $('[data-new-recipe]', box).addEventListener('click', () => openRecipeForm({
         name: query,
-        onCreated: (recipe) => pickAmount(recipe, { sourceText: recipe.name }),
+        onSaved: (recipe) => pickAmount(recipe, { sourceText: recipe.name }),
     }));
 }
 
@@ -137,21 +170,16 @@ function pickAmount(food, { sourceText, inputMethod = 'szöveg' }) {
     }
 
     const sheet = openSheet(`
-        <h2 class="text-lg font-bold">${esc(food.name)}</h2>
-        <p class="mb-4 text-sm text-muted">${[food.brand, `${num(food.per_100g.kcal)} kcal / 100 g`].filter(Boolean).map(esc).join(' · ')}</p>
-        ${portions.length ? `<div class="mb-4 flex flex-wrap gap-2" role="group" aria-label="Adagok">${portions.map((portion) => `<button class="chip" data-grams="${portion.grams}">${esc(portion.label)} · ${num(portion.grams)} g</button>`).join('')}</div>` : ''}
+        ${sheetHeader(esc(food.name), [food.brand, `${num(food.per_100g.kcal)} kcal / 100 g`].filter(Boolean).map(esc).join(' · '))}
+        ${portions.length ? `<div class="no-scrollbar -mx-5 mb-4 flex gap-2 overflow-x-auto px-5" role="group" aria-label="Adagok">${portions.map((portion) => `<button class="chip" data-grams="${portion.grams}">${esc(portion.label)} · ${num(portion.grams)} g</button>`).join('')}</div>` : ''}
         <label class="label" for="amount">Mennyiség (gramm)</label>
-        <input id="amount" class="field mb-3 mt-1" type="number" inputmode="decimal" min="1" step="any" value="${food.default_portion_g ?? 100}">
-        <p class="mb-5 text-sm tabular-nums text-muted" data-preview></p>
-        <div class="grid grid-cols-2 gap-3">
-            <button class="btn-quiet" data-close>Mégse</button>
-            <button class="btn-primary" data-add>Hozzáadás</button>
-        </div>`);
+        <input id="amount" class="field mb-3 mt-1.5 text-lg font-semibold" type="number" inputmode="decimal" min="1" step="any" value="${food.default_portion_g ?? 100}">
+        <div class="mb-5" data-preview aria-live="polite"></div>
+        <button class="btn-primary w-full" data-add>${icon('plus')} Tálcára</button>`);
 
     const amount = $('#amount', sheet.el);
     const update = () => {
-        const n = scaleNutrients(food.per_100g, Number(amount.value) || 0);
-        $('[data-preview]', sheet.el).textContent = `${num(n.kcal)} kcal · F ${num(n.protein, 1)} g · Sz ${num(n.carbs, 1)} g · Zs ${num(n.fat, 1)} g`;
+        $('[data-preview]', sheet.el).innerHTML = macroStats(scaleNutrients(food.per_100g, Number(amount.value) || 0));
     };
 
     amount.addEventListener('input', update);
@@ -192,30 +220,75 @@ function addToCart(food, grams, sourceText, inputMethod) {
     return cart.items[cart.items.length - 1];
 }
 
+const NUTRIENT_FIELDS = ['kcal', 'protein', 'carbs', 'fat'];
+
+/**
+ * Sheet for a new food. The values can be typed per 100 g or for one portion; in portion mode they are converted to
+ * per 100 g before saving, and the portion weight becomes the food's default portion.
+ */
 function newFood(prefill = {}) {
+    let perPortion = false;
     const sheet = openSheet(`
-        <h2 class="mb-1 text-lg font-bold">Új étel</h2>
-        <p class="mb-4 text-sm text-muted">Tápértékek 100 g-ra (folyadéknál 100 ml-re).</p>
+        ${sheetHeader('Új étel', 'Tápértékek 100 g-ra vagy egy adagra (folyadéknál ml).')}
         <form class="space-y-3" novalidate>
-            <div><label class="label" for="nf-name">Név</label><input id="nf-name" name="name" class="field mt-1" required value="${esc(prefill.name ?? '')}"></div>
-            <div class="grid grid-cols-2 gap-3">
-                ${[['kcal', 'Kalória (kcal)'], ['protein', 'Fehérje (g)'], ['carbs', 'Szénhidrát (g)'], ['fat', 'Zsír (g)']].map(([name, label]) => `<div><label class="label" for="nf-${name}">${label}</label><input id="nf-${name}" name="${name}" class="field mt-1" type="number" inputmode="decimal" min="0" step="any" required></div>`).join('')}
+            <div><label class="label" for="nf-name">Név</label><input id="nf-name" name="name" class="field mt-1.5" required value="${esc(prefill.name ?? '')}"></div>
+            <div>
+                <p class="label mb-1.5">Az értékek vonatkoznak</p>
+                <div class="flex gap-2" role="group" aria-label="Az értékek vonatkoznak">
+                    <button type="button" class="chip" data-basis="100g" aria-pressed="true">100 g-ra</button>
+                    <button type="button" class="chip" data-basis="portion" aria-pressed="false">Egy adagra</button>
+                </div>
             </div>
             <div class="grid grid-cols-2 gap-3">
-                <div><label class="label" for="nf-barcode">Vonalkód</label><input id="nf-barcode" name="barcode" class="field mt-1" inputmode="numeric" value="${esc(prefill.barcode ?? '')}"></div>
-                <div><label class="label" for="nf-serving">Adag (g)</label><input id="nf-serving" name="serving_size_g" class="field mt-1" type="number" inputmode="decimal" min="1" step="any"></div>
+                ${[['kcal', 'Kalória (kcal)'], ['protein', 'Fehérje (g)'], ['carbs', 'Szénhidrát (g)'], ['fat', 'Zsír (g)']].map(([name, label]) => `<div><label class="label" for="nf-${name}">${label}</label><input id="nf-${name}" name="${name}" class="field mt-1.5" type="number" inputmode="decimal" min="0" step="any" required></div>`).join('')}
             </div>
-            <p class="h-5 text-sm text-protein" data-error></p>
             <div class="grid grid-cols-2 gap-3">
-                <button type="button" class="btn-quiet" data-close>Mégse</button>
-                <button type="submit" class="btn-primary">Mentés</button>
+                <div><label class="label" for="nf-barcode">Vonalkód</label><input id="nf-barcode" name="barcode" class="field mt-1.5" inputmode="numeric" value="${esc(prefill.barcode ?? '')}"></div>
+                <div><label class="label" for="nf-serving" data-serving-label>Alap adag (g)</label><input id="nf-serving" name="serving_size_g" class="field mt-1.5" type="number" inputmode="decimal" min="1" step="any"></div>
             </div>
+            <p class="text-sm text-muted" data-hint></p>
+            <p class="min-h-5 text-sm text-protein" data-error></p>
+            <button type="submit" class="btn-primary w-full">Mentés</button>
         </form>`);
 
-    $('form', sheet.el).addEventListener('submit', async (event) => {
+    const form = $('form', sheet.el);
+    const serving = () => Number(form.serving_size_g.value) || 0;
+
+    const refresh = () => {
+        $('[data-serving-label]', sheet.el).textContent = perPortion ? 'Adag tömege (g)' : 'Alap adag (g)';
+
+        if (!perPortion) {
+            $('[data-hint]', sheet.el).textContent = 'Az alap adag csak előtölti a mennyiséget hozzáadáskor.';
+        } else if (serving() > 0 && form.kcal.value !== '') {
+            $('[data-hint]', sheet.el).textContent = `100 g-ban: ${num(Number(form.kcal.value) * 100 / serving())} kcal`;
+        } else {
+            $('[data-hint]', sheet.el).textContent = 'Add meg az adag tömegét, ebből számoljuk a 100 g-ra jutó értéket.';
+        }
+    };
+
+    $$('[data-basis]', sheet.el).forEach((chip) => chip.addEventListener('click', () => {
+        perPortion = chip.dataset.basis === 'portion';
+        $$('[data-basis]', sheet.el).forEach((other) => other.setAttribute('aria-pressed', String(other === chip)));
+        refresh();
+    }));
+    form.addEventListener('input', refresh);
+    refresh();
+
+    form.addEventListener('submit', async (event) => {
         event.preventDefault();
 
         const body = Object.fromEntries([...new FormData(event.target)].filter(([, value]) => value !== ''));
+
+        if (perPortion) {
+            if (serving() <= 0) {
+                $('[data-error]', sheet.el).textContent = 'Add meg az adag tömegét grammban.';
+                return;
+            }
+
+            NUTRIENT_FIELDS.filter((name) => name in body).forEach((name) => {
+                body[name] = Math.round(Number(body[name]) * 10000 / serving()) / 100;
+            });
+        }
 
         try {
             const food = await api('/foods', { method: 'POST', body });
@@ -230,15 +303,14 @@ function newFood(prefill = {}) {
 function openScanner() {
     let stop = null;
     const sheet = openSheet(`
-        <h2 class="mb-3 text-lg font-bold">Vonalkód</h2>
-        <div id="reader" class="mb-3 min-h-16 overflow-hidden rounded-xl bg-bg"></div>
+        ${sheetHeader('Vonalkód')}
+        <div id="reader" class="mb-3 min-h-16 overflow-hidden rounded-2xl bg-soft"></div>
         <p class="mb-3 text-sm text-muted" data-status>Kamera indítása…</p>
         <form class="flex gap-2" data-manual>
             <label class="sr-only" for="code">Vonalkód beírása</label>
             <input id="code" class="field" inputmode="numeric" pattern="[0-9]*" placeholder="Vagy írd be a számot">
             <button class="btn-primary">Keresés</button>
-        </form>
-        <button class="btn-quiet mt-3 w-full" data-close>Mégse</button>`, { onClose: () => stop?.() });
+        </form>`, { onClose: () => stop?.() });
 
     const lookup = async (code) => {
         $('[data-status]', sheet.el).textContent = `Keresés: ${code}…`;
@@ -281,14 +353,17 @@ function openScanner() {
 
 function openPhoto() {
     const sheet = openSheet(`
-        <h2 class="mb-1 text-lg font-bold">Fotó alapú felvitel</h2>
-        <p class="mb-4 text-sm text-muted">A felismerés csak piszkozatot ad, a grammokat és a találatokat átnézheted mentés előtt.</p>
+        ${sheetHeader('Fotó alapú felvitel')}
+        <ul class="tile mb-5 space-y-2.5 p-4 text-sm">
+            <li class="flex gap-2.5"><span class="text-brand">${icon('sparkle', 'size-[18px]')}</span>A modell megnevezi az ételeket és grammot becsül.</li>
+            <li class="flex gap-2.5"><span class="text-brand">${icon('scale', 'size-[18px]')}</span>A makrókat a saját adatbázis számolja.</li>
+            <li class="flex gap-2.5"><span class="text-brand">${icon('pencil', 'size-[18px]')}</span>Piszkozat: mentés előtt minden javítható.</li>
+        </ul>
         <label class="label" for="photo-note">Megjegyzés (opcionális)</label>
-        <input id="photo-note" class="field mb-4 mt-1" maxlength="500" placeholder="Pl. fél adag, olajban sütve">
-        <label class="btn-primary w-full" for="photo-file">Fotó készítése vagy kiválasztása</label>
+        <input id="photo-note" class="field mb-4 mt-1.5" maxlength="500" placeholder="Pl. fél adag, olajban sütve">
+        <label class="btn-primary w-full" for="photo-file">${icon('camera')} Fotó készítése vagy kiválasztása</label>
         <input id="photo-file" class="sr-only" type="file" accept="image/*" capture="environment">
-        <p class="mt-3 h-5 text-sm text-protein" data-error></p>
-        <button class="btn-quiet mt-1 w-full" data-close>Mégse</button>`);
+        <p class="mt-3 min-h-5 text-sm text-protein" data-error></p>`);
 
     $('#photo-file', sheet.el).addEventListener('change', async (event) => {
         const file = event.target.files[0];
@@ -348,41 +423,38 @@ export function openCart() {
         const body = $('[data-body]', sheet.el);
 
         if (cart.items.length === 0) {
-            body.innerHTML = '<p class="py-8 text-center text-muted">A tálca üres.</p><button class="btn-quiet w-full" data-close>Bezár</button>';
+            body.innerHTML = `${sheetHeader('Tálca')}<p class="tile p-6 text-center text-muted">A tálca üres.</p>`;
 
             return;
         }
 
         body.innerHTML = `
-            <h2 class="mb-3 text-lg font-bold">Tálca</h2>
-            <ul class="divide-y divide-line">
+            ${sheetHeader('Tálca', `${cart.items.length} tétel · a grammok itt még javíthatók`)}
+            <ul class="card divide-y divide-line overflow-hidden">
                 ${cart.items.map((item, index) => `
-                    <li class="flex items-center gap-3 py-3">
-                        <div class="min-w-0 flex-1"><p class="truncate font-medium">${esc(item.name)}</p><p class="text-sm tabular-nums text-muted" data-line="${index}"></p>${swapSelect(item, index)}</div>
+                    <li class="flex items-center gap-3 py-3 pl-4 pr-2">
+                        <div class="min-w-0 flex-1"><p class="truncate text-[15px] font-medium">${esc(item.name)}</p><p class="mt-0.5 flex flex-wrap gap-x-2.5 text-xs tabular-nums text-muted" data-line="${index}"></p>${swapSelect(item, index)}</div>
                         <label class="sr-only" for="g-${index}">${esc(item.name)} grammja</label>
-                        <input id="g-${index}" data-grams="${index}" class="field !w-24 !px-3 !py-2 text-right" type="number" inputmode="decimal" min="1" step="any" value="${item.grams}">
-                        <button class="btn-quiet !min-h-10 !px-3" data-remove="${index}" aria-label="${esc(item.name)} eltávolítása">✕</button>
+                        <input id="g-${index}" data-grams="${index}" class="field !w-20 !px-3 !py-2 text-right font-semibold" type="number" inputmode="decimal" min="1" step="any" value="${item.grams}">
+                        <button class="icon-btn border-0 text-muted" data-remove="${index}" aria-label="${esc(item.name)} eltávolítása">${icon('x', 'size-4')}</button>
                     </li>`).join('')}
             </ul>
-            <p class="my-3 rounded-xl bg-bg p-3 text-sm font-medium tabular-nums" data-total></p>
-            <div class="mb-3 flex flex-wrap gap-2" role="group" aria-label="Étkezés típusa">
-                ${Object.entries(MEAL_TYPES).map(([value, label]) => `<button class="chip" data-type="${value}" aria-pressed="${cart.mealType === value}">${label}</button>`).join('')}
+            <div class="my-4" data-total aria-live="polite"></div>
+            <p class="label mb-2">Étkezés</p>
+            <div class="no-scrollbar -mx-5 mb-4 flex gap-2 overflow-x-auto px-5" role="group" aria-label="Étkezés típusa">
+                ${Object.entries(MEAL_TYPES).map(([value, label]) => `<button class="chip" data-type="${value}" aria-pressed="${cart.mealType === value}">${icon(MEAL_ICONS[value], 'size-4')}${label}</button>`).join('')}
             </div>
             <label class="label" for="eaten-at">Időpont</label>
-            <input id="eaten-at" class="field mb-2 mt-1" type="datetime-local" value="${cart.eatenAt}">
-            <p class="mb-3 h-5 text-sm text-protein" data-error></p>
-            <div class="grid grid-cols-2 gap-3">
-                <button class="btn-quiet" data-close>Vissza</button>
-                <button class="btn-primary" data-save>Mentés</button>
-            </div>`;
+            <input id="eaten-at" class="field mb-2 mt-1.5" type="datetime-local" value="${cart.eatenAt}">
+            <p class="mb-3 min-h-5 text-sm text-protein" data-error></p>
+            <button class="btn-primary w-full" data-save>Étkezés mentése</button>`;
 
         const refreshTotals = () => {
             cart.items.forEach((item, index) => {
                 const n = scaleNutrients(item.per_100g, item.grams);
-                $(`[data-line="${index}"]`, body).textContent = `${num(n.kcal)} kcal · F ${num(n.protein, 1)} · Sz ${num(n.carbs, 1)} · Zs ${num(n.fat, 1)}`;
+                $(`[data-line="${index}"]`, body).innerHTML = `<span class="font-medium text-ink">${num(n.kcal)} kcal</span> ${macroDots(n, 1)}`;
             });
-            const total = cartTotals();
-            $('[data-total]', body).textContent = `Összesen: ${num(total.kcal)} kcal · F ${num(total.protein, 1)} g · Sz ${num(total.carbs, 1)} g · Zs ${num(total.fat, 1)} g`;
+            $('[data-total]', body).innerHTML = macroStats(cartTotals());
         };
 
         refreshTotals();
@@ -422,7 +494,7 @@ function swapSelect(item, index) {
     if (!item.alternatives?.length) return '';
 
     return `<label class="sr-only" for="swap-${index}">${esc(item.name)} cseréje</label>
-        <select id="swap-${index}" data-swap="${index}" class="mt-1 max-w-full rounded-lg border border-line bg-bg px-2 py-1 text-sm">
+        <select id="swap-${index}" data-swap="${index}" class="mt-1.5 max-w-full rounded-lg border border-line bg-soft px-2 py-1 text-xs">
             <option value="-1">Nem ez? Csere…</option>
             ${item.alternatives.map((alternative, i) => `<option value="${i}">${esc(alternative.name)} (${num(alternative.per_100g.kcal)} kcal/100 g)</option>`).join('')}
         </select>`;
@@ -491,13 +563,4 @@ async function save(sheet, body) {
     sheet.close();
     toast('Étkezés mentve');
     location.hash = `#/today?date=${day}`;
-}
-
-function icon(name) {
-    const paths = {
-        barcode: '<path d="M4 6v12M8 6v12M12 6v12M16 6v12M20 6v12" stroke-linecap="round"/><path d="M6 6v12M14 6v12M18 6v12" stroke-width="3" opacity=".0"/>',
-        camera: '<path d="M4 8h3l2-3h6l2 3h3v11H4z" stroke-linejoin="round"/><circle cx="12" cy="13" r="3.5"/>',
-    };
-
-    return `<svg viewBox="0 0 24 24" class="size-6" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">${paths[name]}</svg>`;
 }

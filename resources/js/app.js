@@ -1,19 +1,24 @@
-import { renderAdd, cartCount, openCart, subscribeCart } from './views/add.js';
+import { icon } from './icons.js';
+import { renderAdd, cartCount, cartKcal, openCart, subscribeCart } from './views/add.js';
 import { renderHistory } from './views/history.js';
+import { renderRecipes } from './views/recipes.js';
 import { renderTargets } from './views/targets.js';
 import { renderToday } from './views/today.js';
-import { $ } from './util.js';
+import { $, num } from './util.js';
 
 const view = $('#view');
 
+/** The middle slot is the raised "add" button; the other four are regular tabs. */
 const TABS = [
-    { route: 'today', label: 'Ma', icon: '<circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2" stroke-linecap="round"/>' },
-    { route: 'add', label: 'Hozzáadás', icon: '<circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8" stroke-linecap="round"/>' },
-    { route: 'history', label: 'Napló', icon: '<path d="M5 19V9M12 19V5M19 19v-7" stroke-linecap="round"/>' },
+    { route: 'today', label: 'Ma', icon: 'home' },
+    { route: 'history', label: 'Napló', icon: 'chart' },
+    { route: 'add', label: 'Hozzáadás', icon: 'plus' },
+    { route: 'recipes', label: 'Receptek', icon: 'book' },
+    { route: 'targets', label: 'Célok', icon: 'target' },
 ];
 
 const VIEWS = {
-    today: renderToday, add: renderAdd, history: renderHistory, targets: renderTargets,
+    today: renderToday, add: renderAdd, history: renderHistory, targets: renderTargets, recipes: renderRecipes,
 };
 
 function parseHash() {
@@ -23,10 +28,19 @@ function parseHash() {
 }
 
 function drawTabs(active) {
-    $('#tabs').innerHTML = `<ul class="mx-auto grid max-w-lg grid-cols-3">${TABS.map((tab) => `
-        <li><a href="#/${tab.route}" class="flex min-h-16 flex-col items-center justify-center gap-1 text-xs font-medium ${tab.route === active ? 'text-brand' : 'text-muted'}" ${tab.route === active ? 'aria-current="page"' : ''}>
-            <svg viewBox="0 0 24 24" class="size-6" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">${tab.icon}</svg>${tab.label}
-        </a></li>`).join('')}</ul>`;
+    $('#tabs').innerHTML = `<ul class="mx-auto grid max-w-lg grid-cols-5 items-center">${TABS.map((tab) => {
+        const current = tab.route === active ? 'aria-current="page"' : '';
+
+        if (tab.route === 'add') {
+            return `<li class="flex justify-center"><a href="#/add" ${current} aria-label="${tab.label}"
+                class="grid size-13 place-items-center rounded-full bg-brand text-brand-ink shadow-lg shadow-brand/30 transition active:scale-95">${icon('plus', 'size-6')}</a></li>`;
+        }
+
+        return `<li><a href="#/${tab.route}" ${current}
+            class="flex min-h-16 flex-col items-center justify-center gap-1 text-[11px] ${tab.route === active ? 'font-semibold text-ink' : 'font-medium text-muted'}">
+            ${icon(tab.icon, 'size-[22px]')}${tab.label}
+        </a></li>`;
+    }).join('')}</ul>`;
 }
 
 function drawCartBar() {
@@ -39,15 +53,22 @@ function drawCartBar() {
         return;
     }
 
-    bar.innerHTML = `<div class="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-20 px-4">
-        <button class="btn-primary mx-auto flex w-full max-w-lg justify-between shadow-lg" data-open-cart><span>Tálca · ${count} tétel</span><span>Megnyitás ›</span></button>
+    bar.innerHTML = `<div class="fixed inset-x-0 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-20 px-4">
+        <button class="mx-auto flex w-full max-w-lg items-center gap-3 rounded-2xl bg-primary py-2.5 pl-2.5 pr-4 text-left text-primary-ink shadow-xl shadow-black/20" data-open-cart>
+            <span class="badge bg-brand text-brand-ink">${icon('basket')}</span>
+            <span class="min-w-0 flex-1">
+                <span class="block text-sm font-semibold">Tálca · ${count} tétel</span>
+                <span class="block text-xs tabular-nums opacity-70">${num(cartKcal())} kcal · koppints a mentéshez</span>
+            </span>
+            ${icon('right')}
+        </button>
     </div>`;
     $('[data-open-cart]', bar).addEventListener('click', openCart);
 }
 
 function route() {
     const { route: name, params } = parseHash();
-    drawTabs(name === 'targets' ? 'history' : name);
+    drawTabs(name);
     VIEWS[name](view, params);
     window.scrollTo(0, 0);
 }

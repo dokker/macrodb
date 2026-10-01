@@ -19,6 +19,14 @@ class Recipe extends Model
     }
 
     /**
+     * @return HasMany<MealItem, $this>
+     */
+    public function mealItems(): HasMany
+    {
+        return $this->hasMany(MealItem::class);
+    }
+
+    /**
      * @return HasMany<FoodPortion, $this>
      */
     public function portions(): HasMany

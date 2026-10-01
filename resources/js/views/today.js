@@ -1,10 +1,13 @@
 import { api } from '../api.js';
-import { confirmSheet, errorBox, openSheet, spinner, toast } from '../ui.js';
+import { MEAL_ICONS, icon } from '../icons.js';
+import {
+    MACROS, confirmSheet, errorBox, macroDots, openSheet, sheetHeader, spinner, toast,
+} from '../ui.js';
 import {
     $, $$, MEAL_TYPES, MICRO_LABELS, addDays, dayLabel, esc, num, timeLabel, todayStr,
 } from '../util.js';
 
-const RING_RADIUS = 52;
+const RING_RADIUS = 42;
 const RING_LENGTH = 2 * Math.PI * RING_RADIUS;
 
 export async function renderToday(view, params) {
@@ -22,19 +25,32 @@ export async function renderToday(view, params) {
         return;
     }
 
+    const longDate = new Date(`${date}T12:00:00Z`).toLocaleDateString('hu-HU', {
+        month: 'long', day: 'numeric', weekday: 'long', timeZone: 'UTC',
+    });
+
     view.innerHTML = `
-        <header class="mb-4 flex items-center justify-between">
-            <a href="#/today?date=${addDays(date, -1)}" class="btn-quiet !px-3" aria-label="Előző nap">‹</a>
-            <div class="text-center">
-                <h1 class="text-xl font-bold capitalize">${dayLabel(date)}</h1>
-                <p class="text-sm text-muted">${date}</p>
+        <header class="mb-5 flex items-end justify-between gap-3">
+            <div class="min-w-0">
+                <p class="text-sm font-medium text-muted first-letter:uppercase">${longDate}</p>
+                <h1 class="text-[28px] font-bold capitalize leading-tight tracking-tight">${dayLabel(date)}</h1>
             </div>
-            <a href="#/today?date=${addDays(date, 1)}" class="btn-quiet !px-3" aria-label="Következő nap">›</a>
+            <nav class="flex shrink-0 gap-2" aria-label="Napok">
+                <a href="#/today?date=${addDays(date, -1)}" class="icon-btn" aria-label="Előző nap">${icon('left')}</a>
+                <a href="#/today?date=${addDays(date, 1)}" class="icon-btn" aria-label="Következő nap">${icon('right')}</a>
+            </nav>
         </header>
-        ${totalsCard(summary)}
-        <section class="mt-6" aria-label="Étkezések">${mealsList(summary, date)}</section>
-        ${microsCard(summary.total)}
-        <a href="#/add?date=${date}" class="btn-primary mt-6 w-full">+ Étkezés rögzítése</a>`;
+        ${date === todayStr() ? '' : '<a href="#/today" class="chip mb-4">Ugrás a mai napra</a>'}
+        ${energyHero(summary)}
+        ${macroTiles(summary)}
+        <section class="mt-8" aria-labelledby="meals-title">
+            <div class="mb-1 flex items-baseline justify-between">
+                <h2 id="meals-title" class="section-title">Étkezések</h2>
+                ${summary.meals.length ? `<a href="#/add?date=${date}" class="text-sm font-semibold text-brand">+ Hozzáadás</a>` : ''}
+            </div>
+            ${mealsList(summary, date)}
+        </section>
+        ${microsCard(summary.total)}`;
 
     $$('[data-item]', view).forEach((row) => row.addEventListener('click', () => {
         const item = summary.meals.flatMap((meal) => meal.items).find((candidate) => candidate.id === Number(row.dataset.item));
@@ -42,104 +58,156 @@ export async function renderToday(view, params) {
     }));
 }
 
-function totalsCard(summary) {
+/** The loud card: eaten energy against the target, a progress ring and the macro energy split. */
+function energyHero(summary) {
     const { total, target, deviation } = summary;
     const eaten = total.kcal;
     const progress = target ? Math.min(eaten / target.kcal, 1) : 0;
     const over = target && eaten > target.kcal;
 
     const status = !target
-        ? '<p class="text-sm text-muted">Nincs napi célérték beállítva.</p><a href="#/targets" class="mt-2 inline-block text-sm font-semibold text-brand">Célok beállítása ›</a>'
-        : over
-            ? `<p class="font-semibold text-protein">${num(deviation.kcal)} kcal a cél fölött</p>`
-            : `<p class="font-semibold">Még ${num(-deviation.kcal)} kcal</p><p class="text-sm text-muted">a ${num(target.kcal)} kcal célból · <a href="#/targets" class="font-semibold text-brand">módosítás</a></p>`;
+        ? 'kcal · <a href="#/targets" class="font-semibold text-white underline underline-offset-2">cél beállítása</a>'
+        : `/ ${num(target.kcal)} kcal · ${over
+            ? `<span class="font-semibold text-protein">${num(deviation.kcal)} a cél fölött</span>`
+            : `még ${num(-deviation.kcal)}`}`;
 
     return `
-        <section class="card p-5" aria-label="Napi összesítő">
-            <div class="flex items-center gap-5">
-                <div class="relative size-32 shrink-0">
-                    <svg viewBox="0 0 120 120" class="size-full -rotate-90" role="img" aria-label="${num(eaten)} kcal elfogyasztva">
-                        <circle cx="60" cy="60" r="${RING_RADIUS}" fill="none" stroke="var(--line)" stroke-width="10"/>
-                        <circle cx="60" cy="60" r="${RING_RADIUS}" fill="none" stroke="${over ? 'var(--protein)' : 'var(--brand)'}" stroke-width="10" stroke-linecap="round"
+        <section class="hero p-5" aria-label="Napi energia">
+            <div class="flex items-start justify-between gap-4">
+                <div class="min-w-0">
+                    <p class="flex items-center gap-1.5 text-sm font-medium text-white/70">${icon('flame', 'size-4')} Napi energia</p>
+                    <p class="mt-2.5 text-[40px] font-bold leading-none tracking-tight tabular-nums">${num(eaten)}</p>
+                    <p class="mt-2 text-sm tabular-nums text-white/70">${status}</p>
+                </div>
+                ${target ? `
+                <div class="relative size-20 shrink-0">
+                    <svg viewBox="0 0 100 100" class="size-full -rotate-90" role="img" aria-label="A cél ${Math.round((eaten / target.kcal) * 100)} százaléka">
+                        <circle cx="50" cy="50" r="${RING_RADIUS}" fill="none" stroke="rgb(255 255 255 / .14)" stroke-width="9"/>
+                        <circle cx="50" cy="50" r="${RING_RADIUS}" fill="none" stroke="${over ? 'var(--protein)' : '#ffffff'}" stroke-width="9" stroke-linecap="round"
                             stroke-dasharray="${RING_LENGTH}" stroke-dashoffset="${RING_LENGTH * (1 - progress)}"/>
                     </svg>
-                    <div class="absolute inset-0 flex flex-col items-center justify-center">
-                        <span class="text-2xl font-bold tabular-nums">${num(eaten)}</span>
-                        <span class="text-xs text-muted">kcal</span>
-                    </div>
-                </div>
-                <div>${status}</div>
+                    <span class="absolute inset-0 grid place-items-center text-base font-semibold tabular-nums">${Math.round((eaten / target.kcal) * 100)}%</span>
+                </div>` : ''}
             </div>
-            <div class="mt-5 space-y-3">
-                ${macroBar('Fehérje', 'bg-protein', total.protein, target?.protein)}
-                ${macroBar('Szénhidrát', 'bg-carbs', total.carbs, target?.carbs)}
-                ${macroBar('Zsír', 'bg-fat', total.fat, target?.fat)}
-            </div>
+            ${energySplit(total)}
         </section>`;
 }
 
-function macroBar(label, barClass, value, goal) {
-    const pct = goal ? Math.min(100, (value / goal) * 100) : 0;
+/** Share of the eaten energy coming from protein, carbs and fat (4/4/9 kcal per gram). */
+function energySplit(total) {
+    const kcal = { protein: total.protein * 4, carbs: total.carbs * 4, fat: total.fat * 9 };
+    const sum = kcal.protein + kcal.carbs + kcal.fat;
+
+    if (sum <= 0) {
+        return '';
+    }
 
     return `
-        <div>
-            <div class="mb-1 flex justify-between text-sm">
-                <span class="font-medium">${label}</span>
-                <span class="tabular-nums text-muted">${num(value)}${goal ? ` / ${num(goal)}` : ''} g</span>
+        <div class="mt-4 border-t border-white/10 pt-3.5">
+            <div class="flex h-2 gap-1 overflow-hidden rounded-full" aria-hidden="true">
+                ${MACROS.map((macro) => `<div class="${macro.dot} rounded-full" style="width:${(kcal[macro.key] / sum) * 100}%"></div>`).join('')}
             </div>
-            <div class="h-2 overflow-hidden rounded-full bg-line" ${goal ? `role="progressbar" aria-valuenow="${Math.round(pct)}" aria-valuemin="0" aria-valuemax="100" aria-label="${label}"` : ''}>
-                <div class="h-full rounded-full ${barClass}" style="width:${goal ? pct : 0}%"></div>
-            </div>
+            <p class="mt-2.5 flex flex-wrap gap-x-4 gap-y-1 text-xs text-white/70">
+                ${MACROS.map((macro) => `<span class="inline-flex items-center gap-1.5"><span class="size-2 rounded-full ${macro.dot}"></span>${macro.label} ${Math.round((kcal[macro.key] / sum) * 100)}%</span>`).join('')}
+            </p>
+        </div>`;
+}
+
+function macroTiles({ total, target }) {
+    return `
+        <div class="mt-3 grid grid-cols-3 gap-2">
+            ${MACROS.map((macro) => {
+                const goal = target?.[macro.key];
+                const pct = goal ? Math.min(100, (total[macro.key] / goal) * 100) : 0;
+
+                return `
+                    <div class="tile p-3">
+                        <span class="badge size-8 ${macro.tint} ${macro.text} text-xs font-bold">${macro.short}</span>
+                        <p class="mt-3 whitespace-nowrap text-lg font-semibold leading-none tabular-nums">${num(total[macro.key])}<span class="text-xs font-normal text-muted">${goal ? ` / ${num(goal)}` : ''} g</span></p>
+                        <p class="mt-1 truncate text-xs text-muted">${macro.label}</p>
+                        <div class="mt-2.5 h-1.5 overflow-hidden rounded-full bg-line" ${goal ? `role="progressbar" aria-valuenow="${Math.round(pct)}" aria-valuemin="0" aria-valuemax="100" aria-label="${macro.label}"` : ''}>
+                            <div class="h-full rounded-full ${macro.dot}" style="width:${pct}%"></div>
+                        </div>
+                    </div>`;
+            }).join('')}
         </div>`;
 }
 
 function mealsList(summary, date) {
     if (summary.meals.length === 0) {
-        return `<div class="card p-8 text-center"><p class="text-lg font-semibold">Még nincs rögzített étkezés</p><p class="mt-1 text-muted">Keress egy ételt, olvass be egy vonalkódot, vagy fotózd le a tányért.</p></div>`;
+        const ways = [
+            ['search', 'Keress rá', 'Pl. „zab”, „tojás”, „rántott hús”', ''],
+            ['barcode', 'Olvasd be a vonalkódot', 'Bolti termékeknél a leggyorsabb', '&open=scan'],
+            ['camera', 'Fotózd le a tányért', 'Piszkozatot kapsz, mentés előtt javítható', '&open=photo'],
+        ];
+
+        return `
+            <div class="tile mt-3 p-5">
+                <p class="font-semibold">Még nincs rögzített étkezés</p>
+                <p class="mt-1 text-sm text-muted">Háromféleképpen vihetsz fel ételt:</p>
+                <ul class="mt-3 divide-y divide-line">
+                    ${ways.map(([name, title, text, open]) => `
+                        <li><a href="#/add?date=${date}${open}" class="flex items-center gap-3 py-3">
+                            <span class="text-muted">${icon(name)}</span>
+                            <span class="min-w-0 flex-1"><span class="block text-sm font-medium">${title}</span><span class="block text-xs text-muted">${text}</span></span>
+                            <span class="text-muted">${icon('right', 'size-4')}</span>
+                        </a></li>`).join('')}
+                </ul>
+            </div>`;
     }
 
     return summary.meals.map((meal) => `
-        <article class="card mb-3 overflow-hidden">
-            <header class="flex items-baseline justify-between px-4 pt-4">
-                <h2 class="font-bold">${MEAL_TYPES[meal.meal_type] ?? esc(meal.meal_type)} <span class="ml-1 text-sm font-normal text-muted">${timeLabel(meal.eaten_at)}</span></h2>
-                <span class="font-semibold tabular-nums">${num(meal.total.kcal)} kcal</span>
+        <article class="mt-4">
+            <header class="flex items-center gap-3 py-2">
+                <span class="badge bg-brand text-brand-ink">${icon(MEAL_ICONS[meal.meal_type] ?? 'bowl')}</span>
+                <div class="min-w-0 flex-1">
+                    <h3 class="font-semibold">${MEAL_TYPES[meal.meal_type] ?? esc(meal.meal_type)}</h3>
+                    <p class="text-xs text-muted">${timeLabel(meal.eaten_at)} · ${meal.items.length} tétel</p>
+                </div>
+                <p class="shrink-0 font-semibold tabular-nums">${num(meal.total.kcal)} <span class="text-xs font-normal text-muted">kcal</span></p>
             </header>
-            <ul class="mt-2 divide-y divide-line">
+            <ul class="card divide-y divide-line overflow-hidden">
                 ${meal.items.map((item) => `
                     <li>
-                        <button data-item="${item.id}" class="flex w-full items-center justify-between gap-3 px-4 py-3 text-left" aria-label="${esc(item.name)} szerkesztése">
-                            <span class="min-w-0"><span class="block truncate font-medium">${esc(item.name)}</span><span class="text-sm text-muted">${num(item.grams, 1)} g</span></span>
-                            <span class="shrink-0 text-sm tabular-nums text-muted">${num(item.nutrients.kcal)} kcal</span>
+                        <button data-item="${item.id}" class="flex w-full items-center gap-3 px-4 py-3 text-left transition active:bg-soft" aria-label="${esc(item.name)} szerkesztése">
+                            <span class="min-w-0 flex-1">
+                                <span class="block truncate text-[15px] font-medium">${esc(item.name)}</span>
+                                <span class="mt-0.5 flex flex-wrap gap-x-2.5 text-xs tabular-nums text-muted">${num(item.grams, 1)} g ${macroDots(item.nutrients)}</span>
+                            </span>
+                            <span class="shrink-0 text-sm font-medium tabular-nums">${num(item.nutrients.kcal)} kcal</span>
+                            <span class="shrink-0 text-muted">${icon('right', 'size-4')}</span>
                         </button>
                     </li>`).join('')}
             </ul>
-            ${meal.note ? `<p class="px-4 pb-3 text-sm text-muted">${esc(meal.note)}</p>` : ''}
+            ${meal.note ? `<p class="mt-2 px-1 text-sm text-muted">${esc(meal.note)}</p>` : ''}
         </article>`).join('');
 }
 
 function microsCard(total) {
     const values = { fiber: total.fiber, sugar: total.sugar, ...total.micros };
     const rows = Object.entries(MICRO_LABELS).map(([key, [label, unit]]) => `
-        <div class="flex justify-between py-2 text-sm"><dt>${label}</dt><dd class="tabular-nums ${values[key] === null ? 'text-muted' : ''}">${values[key] === null ? '–' : `${num(values[key], 1)} ${unit}`}</dd></div>`).join('');
+        <div class="flex justify-between py-2.5 text-sm"><dt>${label}</dt><dd class="tabular-nums ${values[key] === null ? 'text-muted' : 'font-medium'}">${values[key] === null ? '–' : `${num(values[key], 1)} ${unit}`}</dd></div>`).join('');
 
     return `
-        <details class="card mt-6 px-4 py-3">
-            <summary class="cursor-pointer py-1 font-semibold">Részletes tápanyagok</summary>
-            <dl class="mt-2 divide-y divide-line">${rows}</dl>
-            <p class="mt-3 text-xs text-muted">A „–” azt jelenti, hogy nem minden étel adata ismert, ezért az összeg nem megbízható.</p>
+        <details class="tile group mt-8 px-4 py-1">
+            <summary class="flex cursor-pointer list-none items-center gap-3 py-3 font-semibold [&::-webkit-details-marker]:hidden">
+                <span class="text-muted">${icon('info')}</span>
+                <span class="flex-1">Részletes tápanyagok</span>
+                <span class="text-muted transition group-open:rotate-90">${icon('right', 'size-4')}</span>
+            </summary>
+            <dl class="divide-y divide-line border-t border-line">${rows}</dl>
+            <p class="pb-3 pt-2 text-xs text-muted">A „–” azt jelenti, hogy nem minden étel adata ismert, ezért az összeg nem megbízható.</p>
         </details>`;
 }
 
 function editItem(item, refresh) {
     const sheet = openSheet(`
-        <h2 class="mb-1 text-lg font-bold">${esc(item.name)}</h2>
-        <p class="mb-4 text-sm text-muted">Módosítsd a mennyiséget grammban.</p>
-        <label class="label" for="edit-grams">Gramm</label>
-        <input id="edit-grams" class="field mb-2 mt-1" type="number" inputmode="decimal" min="1" step="any" value="${item.grams}">
-        <p class="mb-4 h-5 text-sm text-protein" data-error></p>
-        <div class="grid grid-cols-3 gap-3">
-            <button class="btn-quiet" data-close>Mégse</button>
-            <button class="btn-danger" data-delete>Törlés</button>
+        ${sheetHeader(esc(item.name), `${num(item.grams, 1)} g · ${num(item.nutrients.kcal)} kcal`)}
+        <label class="label" for="edit-grams">Mennyiség (gramm)</label>
+        <input id="edit-grams" class="field mb-2 mt-1.5 text-lg font-semibold" type="number" inputmode="decimal" min="1" step="any" value="${item.grams}">
+        <p class="mb-4 min-h-5 text-sm text-protein" data-error></p>
+        <div class="grid grid-cols-[auto_1fr] gap-3">
+            <button class="btn-danger" data-delete aria-label="Tétel törlése">${icon('trash')} Törlés</button>
             <button class="btn-primary" data-save>Mentés</button>
         </div>`);
 

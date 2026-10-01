@@ -3,33 +3,44 @@
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
 
-/* Colours are CSS variables so dark mode is one swap; utilities like bg-surface come from @theme inline. */
+/*
+ * Colours are CSS variables so dark mode is one swap; utilities like bg-surface come from @theme inline.
+ * Calm, near-white surfaces with one cobalt accent; the macro colours and the patterned hero card are the only loud parts.
+ */
 :root {
     color-scheme: light dark;
-    --bg: #f7f5f0;
+    --bg: #fcfbf9;
     --surface: #ffffff;
-    --ink: #1f1d18;
-    --muted: #6f6a5f;
-    --line: #e8e4da;
-    --brand: #2f7d5b;
+    --soft: #f3f1ec;
+    --ink: #12151d;
+    --muted: #6b6e76;
+    --line: #e9e6df;
+    --brand: #2449e8;
     --brand-ink: #ffffff;
-    --protein: #d2553f;
-    --carbs: #c98a12;
-    --fat: #4a78c2;
+    --primary: #12151d;
+    --primary-ink: #ffffff;
+    --hero: #121829;
+    --protein: #ec5a3c;
+    --carbs: #e99a00;
+    --fat: #139d84;
 }
 
 @media (prefers-color-scheme: dark) {
     :root {
-        --bg: #14130f;
-        --surface: #1e1c17;
-        --ink: #f2efe6;
-        --muted: #a09a8b;
-        --line: #2f2c25;
-        --brand: #58b98a;
-        --brand-ink: #10251b;
-        --protein: #ef7d68;
-        --carbs: #f0b94a;
-        --fat: #7ea3e6;
+        --bg: #0e1014;
+        --surface: #161920;
+        --soft: #1d2129;
+        --ink: #f2f3f5;
+        --muted: #969ba6;
+        --line: #282c35;
+        --brand: #6a86ff;
+        --brand-ink: #0b1233;
+        --primary: #f2f3f5;
+        --primary-ink: #12151d;
+        --hero: #182038;
+        --protein: #ff7b5e;
+        --carbs: #ffc043;
+        --fat: #3ccaa9;
     }
 }
 
@@ -38,11 +49,15 @@
         'Segoe UI Symbol', 'Noto Color Emoji';
     --color-bg: var(--bg);
     --color-surface: var(--surface);
+    --color-soft: var(--soft);
     --color-ink: var(--ink);
     --color-muted: var(--muted);
     --color-line: var(--line);
     --color-brand: var(--brand);
     --color-brand-ink: var(--brand-ink);
+    --color-primary: var(--primary);
+    --color-primary-ink: var(--primary-ink);
+    --color-hero: var(--hero);
     --color-protein: var(--protein);
     --color-carbs: var(--carbs);
     --color-fat: var(--fat);
@@ -67,40 +82,97 @@
     button {
         cursor: pointer;
     }
+
+    :focus-visible {
+        @apply outline-2 outline-offset-2 outline-brand;
+    }
 }
 
+/* White card with a hairline border. */
 @utility card {
     @apply rounded-2xl bg-surface border border-line;
 }
 
+/* Soft, borderless warm-grey panel (stat tiles, info boxes, grouped lists). */
+@utility tile {
+    @apply rounded-2xl bg-soft;
+}
+
+/*
+ * The one emphasised surface: deep navy with a soft cobalt glow and a faint dot grid. Text on it is always white,
+ * in both themes, so children use text-white / text-white/70.
+ */
+@utility hero {
+    @apply relative isolate overflow-hidden rounded-3xl bg-hero text-white;
+    background-image: radial-gradient(80% 70% at 100% 0%, color-mix(in oklab, var(--brand) 32%, transparent) 0%, transparent 70%);
+
+    &::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        z-index: -1;
+        background-image: radial-gradient(rgb(255 255 255 / .08) 1px, transparent 1.4px);
+        background-size: 14px 14px;
+        mask-image: linear-gradient(115deg, transparent 35%, black 100%);
+    }
+}
+
 @utility btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-3 font-semibold min-h-12 transition active:scale-[.98];
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-3 font-semibold min-h-12 transition active:scale-[.98] disabled:opacity-50;
 }
 
 @utility btn-primary {
+    @apply btn bg-primary text-primary-ink;
+}
+
+@utility btn-accent {
     @apply btn bg-brand text-brand-ink;
 }
 
 @utility btn-quiet {
-    @apply btn bg-transparent border border-line text-ink;
+    @apply btn bg-surface border border-line text-ink;
 }
 
 @utility btn-danger {
-    @apply btn bg-transparent border border-protein text-protein;
+    @apply btn bg-transparent border border-protein/40 text-protein;
+}
+
+/* Round outlined icon button (day navigation, back, close). */
+@utility icon-btn {
+    @apply inline-grid size-10 shrink-0 place-items-center rounded-full border border-line bg-surface text-ink transition active:scale-95;
+}
+
+/* Small rounded-square icon badge; colour it with bg-* / text-* next to it. */
+@utility badge {
+    @apply inline-grid size-9 shrink-0 place-items-center rounded-xl;
 }
 
 @utility field {
-    @apply w-full rounded-xl border border-line bg-bg px-4 py-3 text-base text-ink placeholder:text-muted focus:outline-2 focus:outline-brand;
+    @apply w-full rounded-xl border border-line bg-surface px-4 py-3 text-base text-ink placeholder:text-muted transition focus:border-ink focus:outline-none;
 }
 
 @utility chip {
-    @apply inline-flex items-center rounded-full border border-line px-4 py-2 text-sm font-medium min-h-10 text-ink;
+    @apply inline-flex items-center gap-1.5 rounded-full border border-line bg-surface px-4 py-2 text-sm font-medium min-h-10 text-ink whitespace-nowrap;
 
     &[aria-pressed='true'] {
-        @apply bg-brand text-brand-ink border-brand;
+        @apply bg-primary text-primary-ink border-primary;
     }
 }
 
 @utility label {
-    @apply text-xs font-semibold uppercase tracking-wide text-muted;
+    @apply text-sm font-medium text-muted;
+}
+
+/* Section heading above a list, Scout-style: small, bold, sentence case. */
+@utility section-title {
+    @apply text-base font-semibold text-ink;
+}
+
+/* Hide the horizontal scrollbar on chip rows. */
+@utility no-scrollbar {
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar {
+        display: none;
+    }
 }

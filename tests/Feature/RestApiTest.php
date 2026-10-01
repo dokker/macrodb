@@ -52,6 +52,62 @@ it('uses the sum of the ingredients as the finished weight when none is given', 
     ])->assertCreated()->assertJsonPath('data.total_weight_g', 200)->assertJsonPath('data.per_100g.kcal', 210);
 });
 
+it('lists and shows recipes with their ingredients', function () {
+    $flour = foodPer100g('Liszt', kcal: 360);
+
+    $recipeId = $this->postJson('/api/recipes', [
+        'name' => 'Palacsinta',
+        'ingredients' => [['food_id' => $flour->id, 'grams' => 100]],
+    ])->json('data.id');
+
+    $this->getJson('/api/recipes')->assertOk()->assertJsonPath('data.0.name', 'Palacsinta');
+    $this->getJson("/api/recipes/{$recipeId}")
+        ->assertOk()
+        ->assertJsonPath('data.ingredients.0.name', 'Liszt')
+        ->assertJsonPath('data.ingredient_total_g', 100);
+});
+
+it('updates a recipe, replacing ingredients and defaulting the weight to their sum', function () {
+    $flour = foodPer100g('Liszt', kcal: 360);
+    $milk = foodPer100g('Tej', kcal: 60);
+
+    $recipeId = $this->postJson('/api/recipes', [
+        'name' => 'Palacsinta',
+        'total_weight_g' => 150,
+        'ingredients' => [['food_id' => $flour->id, 'grams' => 100]],
+        'portions' => [['label' => '1 db', 'grams' => 50]],
+    ])->json('data.id');
+
+    $this->putJson("/api/recipes/{$recipeId}", [
+        'name' => 'Palacsinta tejjel',
+        'ingredients' => [['food_id' => $flour->id, 'grams' => 100], ['food_id' => $milk->id, 'grams' => 100]],
+    ])->assertOk()
+        ->assertJsonPath('data.name', 'Palacsinta tejjel')
+        ->assertJsonPath('data.total_weight_g', 200)
+        ->assertJsonPath('data.per_100g.kcal', 210)
+        ->assertJsonCount(2, 'data.ingredients')
+        ->assertJsonCount(0, 'data.portions');
+});
+
+it('deletes a recipe that was never logged and refuses one that was', function () {
+    $flour = foodPer100g('Liszt', kcal: 360);
+    $ingredients = [['food_id' => $flour->id, 'grams' => 100]];
+
+    $unused = $this->postJson('/api/recipes', ['name' => 'Egy', 'ingredients' => $ingredients])->json('data.id');
+    $logged = $this->postJson('/api/recipes', ['name' => 'Kettő', 'ingredients' => $ingredients])->json('data.id');
+
+    $this->postJson('/api/meals', [
+        'eaten_at' => '2026-09-28T12:00:00+02:00',
+        'meal_type' => 'ebéd',
+        'items' => [['recipe_id' => $logged, 'grams' => 100, 'input_method' => 'szöveg']],
+    ])->assertCreated();
+
+    $this->deleteJson("/api/recipes/{$unused}")->assertNoContent();
+    $this->deleteJson("/api/recipes/{$logged}")->assertStatus(409);
+    $this->assertDatabaseMissing('recipes', ['id' => $unused]);
+    $this->assertDatabaseHas('recipes', ['id' => $logged]);
+});
+
 it('logs, corrects and deletes meal items end to end', function () {
     $rice = foodPer100g('Rizs', kcal: 130);
 

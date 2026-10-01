@@ -1,5 +1,8 @@
 import { api } from '../api.js';
-import { errorBox, spinner } from '../ui.js';
+import { icon } from '../icons.js';
+import {
+    errorBox, macroDots, pageHeader, spinner,
+} from '../ui.js';
 import {
     $, $$, addDays, esc, num, shortDayLabel, todayStr,
 } from '../util.js';
@@ -23,29 +26,36 @@ export async function renderHistory(view) {
 
     const logged = list.filter((day) => day.meals.length > 0);
     const average = logged.length ? logged.reduce((sum, day) => sum + day.total.kcal, 0) / logged.length : null;
+    const withTarget = logged.filter((day) => day.target);
+    const onTarget = withTarget.filter((day) => day.total.kcal <= day.target.kcal).length;
     const scaleMax = Math.max(1, ...list.map((day) => Math.max(day.total.kcal, day.target?.kcal ?? 0)));
 
+    const stats = [
+        ['flame', average === null ? '–' : num(average), 'Átlag kcal'],
+        ['chart', `${logged.length}/${list.length}`, 'Nap adattal'],
+        ['target', withTarget.length ? `${onTarget}/${withTarget.length}` : '–', 'Célon belül'],
+    ];
+
     view.innerHTML = `
-        <header class="mb-4">
-            <div class="flex items-center justify-between">
-                <h1 class="text-xl font-bold">Napló</h1>
-                <a href="#/targets" class="btn-quiet !min-h-10 !px-4 text-sm">Napi célok</a>
-            </div>
-            <div class="mt-3 flex gap-2" role="group" aria-label="Időszak">
-                ${[7, 14, 30].map((n) => `<button class="chip" data-days="${n}" aria-pressed="${n === days}">${n} nap</button>`).join('')}
-            </div>
-        </header>
-        <div class="card mb-4 p-4">
-            <p class="label">Átlag a rögzített napokon</p>
-            <p class="mt-1 text-2xl font-bold tabular-nums">${average === null ? '–' : `${num(average)} kcal`}</p>
-            <p class="text-sm text-muted">${logged.length} / ${list.length} napon van adat</p>
+        ${pageHeader({ title: 'Napló', subtitle: 'Napi összesítések, a rögzített étkezésekből számolva.' })}
+        <div class="no-scrollbar -mx-5 flex gap-2 overflow-x-auto px-5" role="group" aria-label="Időszak">
+            ${[7, 14, 30].map((n) => `<button class="chip" data-days="${n}" aria-pressed="${n === days}">${n} nap</button>`).join('')}
         </div>
-        <ul class="space-y-2">
+        <div class="mt-4 grid grid-cols-3 gap-2">
+            ${stats.map(([name, value, label]) => `
+                <div class="tile p-3">
+                    <span class="text-muted">${icon(name, 'size-[18px]')}</span>
+                    <p class="mt-3 text-lg font-semibold leading-none tabular-nums">${value}</p>
+                    <p class="mt-1 text-xs text-muted">${label}</p>
+                </div>`).join('')}
+        </div>
+        <h2 class="section-title mb-2 mt-8">Napok</h2>
+        <ul class="card divide-y divide-line overflow-hidden">
             ${[...list].reverse().map((day) => dayRow(day, scaleMax)).join('')}
         </ul>
-        <form method="POST" action="/logout" class="mt-8 text-center">
+        <form method="POST" action="/logout" class="mt-8">
             <input type="hidden" name="_token" value="${document.querySelector('meta[name="csrf-token"]').content}">
-            <button class="text-sm text-muted underline">Kijelentkezés</button>
+            <button class="flex w-full items-center justify-center gap-2 py-3 text-sm font-medium text-muted">${icon('logout', 'size-4')} Kijelentkezés</button>
         </form>`;
 
     $$('[data-days]', view).forEach((button) => button.addEventListener('click', () => {
@@ -62,16 +72,17 @@ function dayRow(day, scaleMax) {
 
     return `
         <li>
-            <a href="#/today?date=${day.date}" class="card block p-3 ${empty ? 'opacity-60' : ''}">
-                <div class="mb-2 flex items-baseline justify-between">
-                    <span class="font-medium capitalize">${shortDayLabel(day.date)}</span>
-                    <span class="tabular-nums ${over ? 'font-semibold text-protein' : ''}">${empty ? '–' : `${num(day.total.kcal)} kcal`}</span>
+            <a href="#/today?date=${day.date}" class="block px-4 py-3 transition active:bg-soft">
+                <div class="flex items-baseline justify-between gap-3">
+                    <span class="text-[15px] font-medium capitalize ${empty ? 'text-muted' : ''}">${shortDayLabel(day.date)}</span>
+                    <span class="text-sm tabular-nums ${over ? 'font-semibold text-protein' : empty ? 'text-muted' : 'font-medium'}">${empty ? 'nincs adat' : `${num(day.total.kcal)} kcal`}</span>
                 </div>
-                <div class="relative h-2.5 overflow-hidden rounded-full bg-line">
+                ${empty ? '' : `
+                <div class="relative mt-2 h-1.5 overflow-hidden rounded-full bg-soft">
                     <div class="h-full rounded-full ${over ? 'bg-protein' : 'bg-brand'}" style="width:${pct}%"></div>
-                    ${targetPct === null ? '' : `<div class="absolute inset-y-0 w-0.5 bg-ink/60" style="left:${targetPct}%" title="Cél"></div>`}
+                    ${targetPct === null ? '' : `<div class="absolute inset-y-0 w-0.5 bg-ink/50" style="left:${targetPct}%" title="Cél"></div>`}
                 </div>
-                ${empty ? '' : `<p class="mt-2 text-xs tabular-nums text-muted">F ${num(day.total.protein)} g · Sz ${num(day.total.carbs)} g · Zs ${num(day.total.fat)} g</p>`}
+                <p class="mt-2 flex flex-wrap gap-x-3 text-xs tabular-nums text-muted">${macroDots(day.total)}</p>`}
             </a>
         </li>`;
 }
