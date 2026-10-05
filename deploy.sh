@@ -50,10 +50,11 @@ mkdir -p storage/framework/{cache/data,sessions,views} storage/logs storage/app 
 "$PHP" artisan view:cache
 "$PHP" artisan queue:restart || true
 "$PHP" artisan up
+"$PHP" artisan mcp:well-known
 REMOTE
 
 echo "==> Füstteszt"
-for path in / /login; do
+for path in / /login /.well-known/oauth-protected-resource/mcp /.well-known/oauth-authorization-server; do
     printf '%s -> ' "$path"
     curl -s -o /dev/null -w '%{http_code}\n' "$URL$path"
 done

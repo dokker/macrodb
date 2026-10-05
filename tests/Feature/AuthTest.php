@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\User;
+use Illuminate\Support\Facades\File;
 
 it('rejects unauthenticated REST and MCP requests', function (string $method, string $uri) {
     $this->json($method, $uri)->assertUnauthorized();
@@ -40,4 +41,18 @@ it('logs the account in through the login form', function () {
 
 it('advertises the MCP OAuth metadata', function () {
     $this->getJson('/.well-known/oauth-protected-resource/mcp')->assertOk();
+});
+
+it('writes the MCP OAuth discovery documents as static files', function () {
+    $directory = storage_path('framework/testing/well-known');
+    File::deleteDirectory($directory);
+
+    $this->artisan('mcp:well-known', ['--path' => $directory])->assertSuccessful();
+
+    expect(json_decode(File::get("{$directory}/oauth-protected-resource/mcp"), true))
+        ->toBe($this->getJson('/.well-known/oauth-protected-resource/mcp')->json())
+        ->and(json_decode(File::get("{$directory}/oauth-authorization-server"), true))
+        ->toBe($this->getJson('/.well-known/oauth-authorization-server')->json());
+
+    File::deleteDirectory($directory);
 });
